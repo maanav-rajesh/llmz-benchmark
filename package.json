@@ -1,0 +1,13 @@
+{
+  "name": "llmz-benchmark",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LLMZ Benchmark Workspace",
+  "scripts": {
+    "start:middleman": "pnpm --filter middleman start",
+    "start:llmz": "pnpm --filter llmz start",
+    "dev:middleman": "pnpm --filter middleman dev",
+    "dev:llmz": "pnpm --filter llmz dev",
+    "build": "pnpm -r build"
+  }
+}

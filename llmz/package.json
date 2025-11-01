@@ -1,0 +1,25 @@
+{
+  "name": "llmz",
+  "version": "1.0.0",
+  "description": "LLMZ CLI Program",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && node dist/server.js",
+    "dev": "ts-node src/server.ts"
+  },
+  "dependencies": {
+    "@botpress/client": "^1.27.0",
+    "@bpinternal/zui": "^1.2.1",
+    "chalk": "^5.6.2",
+    "dotenv": "^17.2.3",
+    "json-schema-to-zod": "^2.6.1",
+    "llmz": "^0.0.27",
+    "openai": "^6.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.0"
+  }
+}
