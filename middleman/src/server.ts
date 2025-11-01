@@ -63,6 +63,10 @@ async function spawnLLMz(
       cwd: "/Users/mnrajesh/Botpress/llmz-benchmark",
     });
 
+    // Redirect child process output to parent
+    llmzProcess.stdout.pipe(process.stdout);
+    llmzProcess.stderr.pipe(process.stderr);
+
     const requestString = JSON.stringify(request);
 
     llmzProcess.stdin.write(requestString);
@@ -81,7 +85,6 @@ async function spawnLLMz(
     });
   });
 }
-
 
 const handleChatCompletion = async (
   req: Request<{}, {}, ChatCompletionCreateParamsNonStreaming>,

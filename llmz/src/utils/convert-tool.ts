@@ -3,6 +3,8 @@ import type {
   ChatCompletionTool,
   ChatCompletionMessageToolCall,
   ChatCompletion,
+  ChatCompletionCreateParamsNonStreaming,
+  ChatCompletionMessageParam,
 } from "openai/resources/chat/completions";
 import { parseSchema } from "json-schema-to-zod";
 import { z } from "@bpinternal/zui";
@@ -21,7 +23,7 @@ export interface ResponseOptions {
  * Creates an OpenAI-compatible chat completion response.
  */
 export function createChatCompletionResponse(
-  options: ResponseOptions
+  options: ResponseOptions,
 ): ChatCompletion {
   const {
     model,
@@ -68,7 +70,7 @@ export function createChatCompletionResponse(
  */
 export function convertJsonSchemaToZod(
   jsonSchema: Record<string, any> | undefined,
-  toolName?: string
+  toolName?: string,
 ): any {
   // Default schema if no parameters provided
   if (!jsonSchema || typeof jsonSchema !== "object") {
@@ -97,17 +99,19 @@ export function convertJsonSchemaToZod(
  * and returned to the client for execution.
  */
 export function convertOpenAIToolToLLMzTool(
-  tool: ChatCompletionTool
+  tool: ChatCompletionTool,
 ): LLMzTool {
   if (tool.type !== "function") {
     throw new Error("Only function tools are supported");
   }
   const { name, description, parameters } = tool.function;
 
+  console.log(`Tool: ${name} with description: ${description}`);
+  console.log(`Parameters: ${JSON.stringify(parameters)}`);
   // Convert input schema
   const inputSchema = convertJsonSchemaToZod(
     parameters as Record<string, any> | undefined,
-    name
+    name,
   );
 
   return new LLMzTool({
@@ -115,6 +119,7 @@ export function convertOpenAIToolToLLMzTool(
     description: description || `Tool: ${name}`,
     input: inputSchema,
     handler: async (args: z.infer<typeof inputSchema>) => {
+      console.log(`Tool call: ${name} with arguments: ${JSON.stringify(args)}`);
       // Create the tool call object
       const toolCallId = `call_${randomUUID().replace(/-/g, "").slice(0, 24)}`;
       const toolCall: ChatCompletionMessageToolCall = {
@@ -134,6 +139,7 @@ export function convertOpenAIToolToLLMzTool(
         completionTokens: 0,
       });
 
+      // Send tool call to middleman and wait for tool results
       const result = await fetch("http://localhost:3000/tool-calls", {
         method: "POST",
         headers: {
@@ -142,9 +148,33 @@ export function convertOpenAIToolToLLMzTool(
         body: JSON.stringify(response),
       });
 
-      const resultData = await result.json();
+      const resultData: ChatCompletionCreateParamsNonStreaming =
+        await result.json();
 
-      return resultData.choices[0].message.content;
+      // Find the tool result message that matches our toolCallId
+      const toolResultMessage = resultData.messages.find(
+        (msg: ChatCompletionMessageParam) =>
+          msg.role === "tool" &&
+          "tool_call_id" in msg &&
+          msg.tool_call_id === toolCallId,
+      );
+
+      if (!toolResultMessage || !("content" in toolResultMessage)) {
+        throw new Error(`Tool result not found for tool call ${toolCallId}`);
+      }
+
+      // Extract and parse the content
+      const content =
+        typeof toolResultMessage.content === "string"
+          ? toolResultMessage.content
+          : JSON.stringify(toolResultMessage.content);
+
+      // Try to parse as JSON, otherwise return as string
+      try {
+        return JSON.parse(content);
+      } catch {
+        return content;
+      }
     },
   });
 }

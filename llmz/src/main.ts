@@ -3,7 +3,10 @@ import { execute } from "llmz";
 import { CLIChat } from "./utils/cli-chat";
 import { Client } from "@botpress/client";
 import dotenv from "dotenv";
-import type { ChatCompletionCreateParamsNonStreaming } from "openai/resources/chat/completions";
+import type {
+  ChatCompletionCreateParamsNonStreaming,
+  ChatCompletion,
+} from "openai/resources/chat/completions";
 import { convertOpenAIToolToLLMzTool } from "./utils/convert-tool";
 import type { ExecutionResult } from "llmz";
 
@@ -63,27 +66,45 @@ async function main() {
     }
   }
 
-  if (result && result.isSuccess()) {
-    fetch("http://localhost:3000/tool-calls", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+  // Create ChatCompletion response
+  const response: ChatCompletion = {
+    id: `chatcmpl-${Date.now()}`,
+    object: "chat.completion",
+    created: Math.floor(Date.now() / 1000),
+    model: requestData.model,
+    choices: [
+      {
+        index: 0,
+        message: {
+          role: "assistant",
+          content:
+            result && result.isSuccess()
+              ? "Task completed successfully"
+              : "Task failed",
+          refusal: null,
+        },
+        logprobs: null,
+        finish_reason: "stop",
       },
-      body: JSON.stringify({
-        outcome: "success",
-      }),
-    });
-  } else {
-    fetch("http://localhost:3000/tool-calls", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        outcome: "failure",
-      }),
-    });
-  }
+    ],
+    usage: {
+      prompt_tokens: 0,
+      completion_tokens: 0,
+      total_tokens:
+        result?.iterations
+          .map((iteration) => iteration.llm?.tokens ?? 0)
+          .reduce((a, b) => a + b, 0) ?? 0,
+    },
+  };
+
+  // Send ChatCompletion to middleman
+  await fetch("http://localhost:3000/tool-calls", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(response),
+  });
 }
 
 main().catch((error) => {
