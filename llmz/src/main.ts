@@ -39,10 +39,12 @@ async function main() {
   }
 
   const chat = new CLIChat();
-  chat.transcript.push({
-    role: "user",
-    content: requestData.messages[0].content as string,
-  });
+  for (const message of requestData.messages) {
+    chat.transcript.push({
+      role: "user",
+      content: message.content as string,
+    });
+  }
 
   const client = new Client({
     token: process.env.BOTPRESS_TOKEN,
@@ -59,12 +61,13 @@ async function main() {
       options: {
         loop: 10,
       },
-      model: "openai:gpt-4.1-nano-2025-04-14",
     });
     if (result.isSuccess()) {
       break;
     }
   }
+
+  console.log("sending final response");
 
   // Create ChatCompletion response
   const response: ChatCompletion = {

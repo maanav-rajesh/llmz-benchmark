@@ -6,7 +6,7 @@ import type {
   ChatCompletionCreateParamsNonStreaming,
   ChatCompletionMessageParam,
 } from "openai/resources/chat/completions";
-import { parseSchema } from "json-schema-to-zod";
+import { convertJsonSchemaToZod as jsonSchemaToZod } from "zod-from-json-schema";
 import { z } from "@bpinternal/zui";
 import { randomUUID } from "node:crypto";
 
@@ -23,7 +23,7 @@ export interface ResponseOptions {
  * Creates an OpenAI-compatible chat completion response.
  */
 export function createChatCompletionResponse(
-  options: ResponseOptions,
+  options: ResponseOptions
 ): ChatCompletion {
   const {
     model,
@@ -70,7 +70,7 @@ export function createChatCompletionResponse(
  */
 export function convertJsonSchemaToZod(
   jsonSchema: Record<string, any> | undefined,
-  toolName?: string,
+  toolName?: string
 ): any {
   // Default schema if no parameters provided
   if (!jsonSchema || typeof jsonSchema !== "object") {
@@ -78,13 +78,9 @@ export function convertJsonSchemaToZod(
   }
 
   try {
-    // Convert JSON Schema to Zod using json-schema-to-zod
-    const zodSchemaCode = parseSchema(jsonSchema);
-
-    // Evaluate the generated Zod schema code
-    // eslint-disable-next-line no-eval
-    const zodSchema = eval(zodSchemaCode);
-    return zodSchema;
+    // Use zod-from-json-schema for runtime conversion
+    const result = jsonSchemaToZod(jsonSchema);
+    return result;
   } catch (error) {
     const context = toolName ? ` for tool ${toolName}` : "";
     console.warn(`Failed to convert schema${context}:`, error);
@@ -99,19 +95,17 @@ export function convertJsonSchemaToZod(
  * and returned to the client for execution.
  */
 export function convertOpenAIToolToLLMzTool(
-  tool: ChatCompletionTool,
+  tool: ChatCompletionTool
 ): LLMzTool {
   if (tool.type !== "function") {
     throw new Error("Only function tools are supported");
   }
   const { name, description, parameters } = tool.function;
 
-  console.log(`Tool: ${name} with description: ${description}`);
-  console.log(`Parameters: ${JSON.stringify(parameters)}`);
   // Convert input schema
   const inputSchema = convertJsonSchemaToZod(
     parameters as Record<string, any> | undefined,
-    name,
+    name
   );
 
   return new LLMzTool({
@@ -156,7 +150,7 @@ export function convertOpenAIToolToLLMzTool(
         (msg: ChatCompletionMessageParam) =>
           msg.role === "tool" &&
           "tool_call_id" in msg &&
-          msg.tool_call_id === toolCallId,
+          msg.tool_call_id === toolCallId
       );
 
       if (!toolResultMessage || !("content" in toolResultMessage)) {

@@ -56,11 +56,11 @@ function containsToolMessages(messages: ChatCompletionMessageParam[]): boolean {
 
 // Spawn llmz process and pass request via stdin
 async function spawnLLMz(
-  request: ChatCompletionCreateParamsNonStreaming,
+  request: ChatCompletionCreateParamsNonStreaming
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    const llmzProcess = spawn("pnpm", ["--filter", "llmz", "dev"], {
-      cwd: "/Users/mnrajesh/Botpress/llmz-benchmark",
+    const llmzProcess = spawn("pnpm", ["dev"], {
+      cwd: "/Users/mnrajesh/Botpress/llmz-benchmark/llmz",
     });
 
     // Redirect child process output to parent
@@ -88,7 +88,7 @@ async function spawnLLMz(
 
 const handleChatCompletion = async (
   req: Request<{}, {}, ChatCompletionCreateParamsNonStreaming>,
-  res: Response<ChatCompletion>,
+  res: Response<ChatCompletion>
 ) => {
   const requestBody = req.body;
 
@@ -99,7 +99,7 @@ const handleChatCompletion = async (
     // Initial request - spawn llmz process
     console.log("No tool messages found, spawning llmz process...");
     try {
-      await spawnLLMz(requestBody);
+      spawnLLMz(requestBody);
     } catch (error) {
       console.error("Error spawning llmz:", error);
     }
@@ -123,7 +123,7 @@ app.post("/v1/chat/completions", handleChatCompletion);
 // Tool calls endpoint - publishes response and waits for tool results
 const handleToolCalls = async (
   req: Request<{}, {}, ChatCompletion>,
-  res: Response<ChatCompletionCreateParamsNonStreaming>,
+  res: Response<ChatCompletionCreateParamsNonStreaming>
 ) => {
   const completion = req.body;
 
@@ -133,6 +133,10 @@ const handleToolCalls = async (
 
   // Block and wait for tool results from toolResultsQueue (client → llmz)
   console.log("Waiting for tool results from toolResultsQueue...");
+  if (completion.choices[0].finish_reason === "stop") {
+    return res.json();
+  }
+
   const toolResults = await toolResultsQueue.consume();
 
   // Return tool results back to llmz
