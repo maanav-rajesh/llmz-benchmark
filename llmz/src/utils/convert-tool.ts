@@ -112,6 +112,7 @@ export function convertOpenAIToolToLLMzTool(
     name,
     description: description || `Tool: ${name}`,
     input: inputSchema,
+    output: z.object({}).describe("The result of the tool call"),
     handler: async (args: z.infer<typeof inputSchema>) => {
       console.log(`Tool call: ${name} with arguments: ${JSON.stringify(args)}`);
       // Create the tool call object

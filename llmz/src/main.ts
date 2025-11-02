@@ -61,6 +61,7 @@ async function main() {
       options: {
         loop: 10,
       },
+      model: "openai:gpt-5-2025-08-07",
     });
     if (result.isSuccess()) {
       break;
