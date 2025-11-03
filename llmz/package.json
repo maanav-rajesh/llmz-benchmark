@@ -6,15 +6,17 @@
   "scripts": {
     "build": "tsc",
     "start": "npm run build && node dist/main.js",
-    "dev": "ts-node src/main.ts"
+    "dev": "tsx src/main.ts"
   },
   "dependencies": {
     "@botpress/client": "^1.27.0",
-    "@bpinternal/zui": "^1.2.1",
+    "@botpress/zai": "^2.3.0",
+    "@bpinternal/zui": "1.2.1",
     "chalk": "^5.6.2",
     "dotenv": "^17.2.3",
     "llmz": "^0.0.27",
     "openai": "^6.7.0",
+    "zod": "^4.1.12",
     "zod-from-json-schema": "^0.5.1"
   },
   "devDependencies": {

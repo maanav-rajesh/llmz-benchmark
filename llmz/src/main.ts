@@ -9,6 +9,8 @@ import type {
 } from "openai/resources/chat/completions";
 import { convertOpenAIToolToLLMzTool } from "./utils/convert-tool";
 import type { ExecutionResult } from "llmz";
+import { z } from "@bpinternal/zui";
+import type { Tool as LLMzTool } from "llmz";
 
 dotenv.config();
 
@@ -38,13 +40,21 @@ async function main() {
     process.exit(1);
   }
 
-  const chat = new CLIChat();
+  // const chat = new CLIChat();
+  let instructions = "";
   for (const message of requestData.messages) {
-    chat.transcript.push({
-      role: "user",
-      content: message.content as string,
-    });
+    instructions += `${message.content} \n\n`;
+    // chat.transcript.push({
+    //   role: "user",
+    //   content: message.content as string,
+    // });
   }
+
+
+  instructions += "IMPORTANT: None of the tools will work outside allowed directories. Do not assume that your current working directory is allowed.\n\n";
+
+  instructions += "IMPORTANT: The tools will NOT throw errors if they fail. Instead, they will return a result with the hasError flag set to true.\n\n";
+  // instructions += "IMPORTANT: Your tools will return a result that can be any type, may contain miscellaneous information. ALWAYS RETURN A THINK ACTION AFTER CALLING A TOOL so that you can UNDERSTAND the result AND how to use it.\n\n";
 
   const client = new Client({
     token: process.env.BOTPRESS_TOKEN,
@@ -52,20 +62,27 @@ async function main() {
     botId: process.env.BOTPRESS_BOT_ID,
   });
 
+  const tools: LLMzTool[] = [];
+  for (const tool of requestData.tools ?? []) {
+    tools.push(await convertOpenAIToolToLLMzTool(client, tool));
+  }
+
   let result: ExecutionResult | undefined;
-  while (await chat.iterate()) {
-    result = await execute({
-      client,
-      chat,
-      tools: requestData.tools?.map(convertOpenAIToolToLLMzTool),
-      options: {
-        loop: 10,
-      },
-      model: "openai:gpt-5-2025-08-07",
-    });
-    if (result.isSuccess()) {
-      break;
-    }
+  result = await execute({
+    client,
+    instructions,
+    tools,
+    options: {
+      loop: 10,
+      timeout: 100000000,
+    },
+    model: "openai:gpt-5-2025-08-07",
+  });
+  console.log("[LLMz]\n");
+  for (const iteration of result.iterations) {
+    console.log("===========ITERATION START=============");
+    console.log(iteration.code);
+    console.log("===========ITERATION END=============");
   }
 
   console.log("sending final response");
@@ -115,3 +132,4 @@ main().catch((error) => {
   console.error("Error:", error);
   process.exit(1);
 });
+z

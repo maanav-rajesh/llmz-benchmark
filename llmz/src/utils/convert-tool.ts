@@ -5,11 +5,15 @@ import type {
   ChatCompletion,
   ChatCompletionCreateParamsNonStreaming,
   ChatCompletionMessageParam,
+  ChatCompletionContentPartText,
 } from "openai/resources/chat/completions";
 import { convertJsonSchemaToZod as jsonSchemaToZod } from "zod-from-json-schema";
 import { z } from "@bpinternal/zui";
 import { randomUUID } from "node:crypto";
-
+import { Client } from "@botpress/client";
+import { mcpToolOutputSchemas } from "../generated-schemas/mcp-tool-output-schemas";
+import { Zai } from "@botpress/zai";
+import { OpenAI } from "openai";
 export interface ResponseOptions {
   model: string;
   content?: string;
@@ -18,7 +22,7 @@ export interface ResponseOptions {
   promptTokens?: number;
   completionTokens?: number;
 }
-
+import * as zod from "zod";
 /**
  * Creates an OpenAI-compatible chat completion response.
  */
@@ -94,9 +98,10 @@ export function convertJsonSchemaToZod(
  * These tools are placeholders - they won't execute, but will be intercepted
  * and returned to the client for execution.
  */
-export function convertOpenAIToolToLLMzTool(
+export async function convertOpenAIToolToLLMzTool(
+  client: Client,
   tool: ChatCompletionTool
-): LLMzTool {
+): Promise<LLMzTool> {
   if (tool.type !== "function") {
     throw new Error("Only function tools are supported");
   }
@@ -107,12 +112,30 @@ export function convertOpenAIToolToLLMzTool(
     parameters as Record<string, any> | undefined,
     name
   );
+  // Save the schema to a file
+  const outputSchema = convertJsonSchemaToZod(mcpToolOutputSchemas[name]);
+
+  try {
+    const resultingSchema = zod.toJSONSchema(outputSchema);
+    if (name === "list_allowed_directories") {
+      console.log(JSON.stringify(resultingSchema, null, 2));
+    }
+  }
+  catch (error) {
+    console.log(name);
+    console.log(JSON.stringify(mcpToolOutputSchemas[name], null, 2));
+    console.error(`[Error converting schema] name: ${name}`, error);
+    throw new Error(`Error converting schema: ${error}`);
+  }
+
+  // const outputJSONSchema = JSON.parse(outputSchemaString);
+  // const outputSchemaZod = convertJsonSchemaToZod(outputJSONSchema, name);
 
   return new LLMzTool({
     name,
     description: description || `Tool: ${name}`,
     input: inputSchema,
-    output: z.object({}).describe("The result of the tool call"),
+    output: outputSchema,
     handler: async (args: z.infer<typeof inputSchema>) => {
       console.log(`Tool call: ${name} with arguments: ${JSON.stringify(args)}`);
       // Create the tool call object
@@ -157,19 +180,47 @@ export function convertOpenAIToolToLLMzTool(
       if (!toolResultMessage || !("content" in toolResultMessage)) {
         throw new Error(`Tool result not found for tool call ${toolCallId}`);
       }
+      // Extract and parse the content;
+      const content = toolResultMessage.content as string;
+      const parsedContent = JSON.parse(content);
+      const contentText =
+        parsedContent.content as ChatCompletionContentPartText[];
+      const toolCallOutput = contentText[0].text;
 
-      // Extract and parse the content
-      const content =
-        typeof toolResultMessage.content === "string"
-          ? toolResultMessage.content
-          : JSON.stringify(toolResultMessage.content);
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
 
-      // Try to parse as JSON, otherwise return as string
+      let parsedResponse: z.infer<typeof outputSchema> | undefined;
       try {
-        return JSON.parse(content);
-      } catch {
-        return content;
+        parsedResponse = await openai.responses.create({
+          model: "gpt-4o-2024-08-06",
+          input: [
+            {
+              role: "system",
+              content:
+                "Extract the output of the tool call and return it in the specified JSON format.",
+            },
+            {
+              role: "user",
+              content: toolCallOutput,
+            },
+          ],
+          text: {
+            format: {
+              type: "json_schema",
+              name: `${name}_output`,
+              schema: mcpToolOutputSchemas[name],
+            },
+          },
+        });
+
+        console.log("[Parsed response]", parsedResponse.output_text);
+      } catch (error) {
+        console.error("[Error parsing tool output]", error);
+        throw new Error(`Error parsing tool output: ${error}`);
       }
+      return JSON.parse(parsedResponse.output_text);
     },
   });
 }
