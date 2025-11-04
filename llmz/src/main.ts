@@ -58,6 +58,10 @@ async function main() {
     // });
   }
 
+  instructions +=
+    `\n\n` + `The allowed working directory IS the test directory.`;
+  instructions += `\n\n` + `Check the return type of every tool call. Do not assume the return type of a tool call.`;
+
   const client = new Client({
     token: process.env.BOTPRESS_TOKEN,
     workspaceId: process.env.BOTPRESS_WORKSPACE_ID,
