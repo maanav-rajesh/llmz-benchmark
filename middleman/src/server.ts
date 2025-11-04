@@ -1,5 +1,6 @@
 import express, { Request, Response } from "express";
 import { spawn } from "child_process";
+import path from "path";
 import type {
   ChatCompletionCreateParamsNonStreaming,
   ChatCompletion,
@@ -56,11 +57,11 @@ function containsToolMessages(messages: ChatCompletionMessageParam[]): boolean {
 
 // Spawn llmz process and pass request via stdin
 async function spawnLLMz(
-  request: ChatCompletionCreateParamsNonStreaming
+  request: ChatCompletionCreateParamsNonStreaming,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const llmzProcess = spawn("pnpm", ["dev"], {
-      cwd: "/Users/mnrajesh/Botpress/llmz-benchmark/llmz",
+      cwd: path.resolve(__dirname, "../../llmz"),
     });
 
     // Redirect child process output to parent
@@ -88,7 +89,7 @@ async function spawnLLMz(
 
 const handleChatCompletion = async (
   req: Request<{}, {}, ChatCompletionCreateParamsNonStreaming>,
-  res: Response<ChatCompletion>
+  res: Response<ChatCompletion>,
 ) => {
   const requestBody = req.body;
 
@@ -123,7 +124,7 @@ app.post("/v1/chat/completions", handleChatCompletion);
 // Tool calls endpoint - publishes response and waits for tool results
 const handleToolCalls = async (
   req: Request<{}, {}, ChatCompletion>,
-  res: Response<ChatCompletionCreateParamsNonStreaming>
+  res: Response<ChatCompletionCreateParamsNonStreaming>,
 ) => {
   const completion = req.body;
 

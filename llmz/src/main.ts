@@ -14,6 +14,9 @@ import type { Tool as LLMzTool } from "llmz";
 
 dotenv.config();
 
+
+
+
 async function main() {
   const rl = readline.createInterface({
     input: process.stdin,
@@ -50,10 +53,11 @@ async function main() {
     // });
   }
 
+  instructions +=
+    "IMPORTANT: None of the tools will work outside allowed directories. Do not assume that your current working directory is allowed.\n\n";
 
-  instructions += "IMPORTANT: None of the tools will work outside allowed directories. Do not assume that your current working directory is allowed.\n\n";
-
-  instructions += "IMPORTANT: The tools will NOT throw errors if they fail. Instead, they will return a result with the hasError flag set to true.\n\n";
+  instructions +=
+    "IMPORTANT: The tools will NOT throw errors if they fail. Instead, they will return a result with the hasError flag set to true.\n\n";
   // instructions += "IMPORTANT: Your tools will return a result that can be any type, may contain miscellaneous information. ALWAYS RETURN A THINK ACTION AFTER CALLING A TOOL so that you can UNDERSTAND the result AND how to use it.\n\n";
 
   const client = new Client({
@@ -132,4 +136,3 @@ main().catch((error) => {
   console.error("Error:", error);
   process.exit(1);
 });
-z
