@@ -74,14 +74,34 @@ pnpm dev:watch
 
 Auto-restarts when `.ts` files change in `llmz/` or `middleman/`.
 
+### Viewer (React UI)
+
+View benchmark results in a web UI:
+
+```bash
+pnpm dev:viewer
+```
+
+Opens at `http://localhost:3001`. Shows:
+- Run selector (pick from saved results)
+- Iteration-by-iteration breakdown
+- Generated TypeScript code (syntax highlighted)
+- Tool calls with input/output + schemas
+- Error traces for failed iterations
+
+Results are saved to `llmz/results/run_*.json` after each benchmark run.
+
 ## Project Structure
 
 ```
 llmz-benchmark/
 ├─ llmz/              # LLMz CLI (reads OpenAI requests from stdin)
 │  ├─ src/
+│  ├─ results/        # Saved benchmark results (*.json)
 │  └─ .env.example
 ├─ middleman/         # Proxy server (OpenAI API → llmz)
+│  └─ src/
+├─ viewer/            # React UI for viewing results
 │  └─ src/
 ├─ mcpmark/           # Python benchmark suite (git submodule)
 │  ├─ .venv/          # Auto-created Python virtualenv
@@ -99,4 +119,6 @@ llmz-benchmark/
 
 ## Results
 
-Results saved to `mcpmark/results/<timestamp>/gpt-5__filesystem/run-1/`
+Benchmark results are saved to two locations:
+- **llmz/results/run_*.json** - Full iteration traces with code, tool calls, and schemas (used by viewer)
+- **mcpmark/results/\<timestamp\>/gpt-5__filesystem/run-1/** - MCPMark evaluation results

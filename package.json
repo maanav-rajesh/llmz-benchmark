@@ -12,6 +12,7 @@
     "start:llmz": "pnpm --filter llmz start",
     "dev:middleman": "pnpm --filter middleman dev",
     "dev:llmz": "pnpm --filter llmz dev",
+    "dev:viewer": "pnpm --filter viewer dev",
     "build": "pnpm -r build"
   },
   "devDependencies": {
