@@ -2,12 +2,10 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
   {
     read_file: {
       type: "object",
-      description:
-        "Read the complete contents of a file as text. DEPRECATED: Use read_text_file instead.",
       properties: {
         content: {
           type: "string",
-          description: "The text content of the file (empty string if error)",
+          description: "The text content of the file",
         },
         error: {
           type: ["string", "null"],
@@ -24,12 +22,10 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
 
     read_text_file: {
       type: "object",
-      description:
-        "Read the complete contents of a file from the file system as text. Handles various text encodings and provides detailed error messages if the file cannot be read. Use this tool when you need to examine the contents of a single file. Use the 'head' parameter to read only the first N lines of a file, or the 'tail' parameter to read only the last N lines of a file. Operates on the file as text regardless of extension. Only works within allowed directories.",
       properties: {
         content: {
           type: "string",
-          description: "The text content of the file (empty string if error)",
+          description: "The text content of the file",
         },
         encoding: {
           type: "string",
@@ -54,8 +50,6 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
 
     read_media_file: {
       type: "object",
-      description:
-        "Read an image or audio file. Returns the base64 encoded data and MIME type. Only works within allowed directories.",
       properties: {
         data: {
           type: "string",
@@ -70,23 +64,17 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
           type: "number",
           description: "File size in bytes",
         },
-        error: {
-          type: ["string", "null"],
-          description: "Error message if file reading failed",
-        },
         hasError: {
           type: "boolean",
           description: "True if an error was encountered during execution",
         },
       },
-      required: ["data", "mimeType", "size", "error", "hasError"],
+      required: ["data", "mimeType", "size", "hasError"],
       additionalProperties: false,
     },
 
     read_multiple_files: {
       type: "object",
-      description:
-        "Read the contents of multiple files simultaneously. This is more efficient than reading files one by one when you need to analyze or compare multiple files. Each file's content is returned with its path as a reference. Failed reads for individual files won't stop the entire operation. Only works within allowed directories.",
       properties: {
         results: {
           type: "array",
@@ -130,8 +118,6 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
 
     write_file: {
       type: "object",
-      description:
-        "Create a new file or completely overwrite an existing file with new content. Use with caution as it will overwrite existing files without warning. Handles text content with proper encoding. Only works within allowed directories.",
       properties: {
         success: {
           type: "boolean",
@@ -145,23 +131,17 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
           type: "number",
           description: "Number of bytes written to the file",
         },
-        error: {
-          type: ["string", "null"],
-          description: "Error message if file writing failed",
-        },
         hasError: {
           type: "boolean",
           description: "True if an error was encountered during execution",
         },
       },
-      required: ["success", "path", "bytesWritten", "error", "hasError"],
+      required: ["success", "path", "bytesWritten", "hasError"],
       additionalProperties: false,
     },
 
     edit_file: {
       type: "object",
-      description:
-        "Make line-based edits to a text file. Each edit replaces exact line sequences with new content. Returns a git-style diff showing the changes made. Only works within allowed directories.",
       properties: {
         success: {
           type: "boolean",
@@ -179,30 +159,17 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
           type: "number",
           description: "Total number of edits requested",
         },
-        error: {
-          type: ["string", "null"],
-          description: "Error message if editing failed",
-        },
         hasError: {
           type: "boolean",
           description: "True if an error was encountered during execution",
         },
       },
-      required: [
-        "success",
-        "diff",
-        "editsApplied",
-        "totalEdits",
-        "error",
-        "hasError",
-      ],
+      required: ["success", "diff", "editsApplied", "totalEdits", "hasError"],
       additionalProperties: false,
     },
 
     create_directory: {
       type: "object",
-      description:
-        "Create a new directory or ensure a directory exists. Can create multiple nested directories in one operation. If the directory already exists, this operation will succeed silently. Perfect for setting up directory structures for projects or ensuring required paths exist. Only works within allowed directories.",
       properties: {
         success: {
           type: "boolean",
@@ -216,27 +183,21 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
           type: "boolean",
           description: "True if newly created, false if already existed",
         },
-        error: {
-          type: ["string", "null"],
-          description: "Error message if directory creation failed",
-        },
         hasError: {
           type: "boolean",
           description: "True if an error was encountered during execution",
         },
       },
-      required: ["success", "path", "created", "error", "hasError"],
+      required: ["success", "path", "created", "hasError"],
       additionalProperties: false,
     },
 
     list_directory: {
       type: "object",
-      description:
-        "Get a detailed listing of all files and directories in a specified path. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is essential for understanding directory structure and finding specific files within a directory. Only works within allowed directories.",
       properties: {
         entries: {
           type: "array",
-          description: "List of directory entries parsed from MCP text output",
+          description: "List of directory entries",
           items: {
             type: "object",
             properties: {
@@ -249,33 +210,34 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
                 enum: ["FILE", "DIR"],
                 description: "Type of the entry",
               },
+              fullPath: {
+                type: "string",
+                description: "Full path to the entry",
+              },
             },
-            required: ["name", "type"],
+            required: ["name", "type", "fullPath"],
             additionalProperties: false,
           },
         },
-        error: {
-          type: ["string", "null"],
-          description: "Error message if listing failed",
+        totalCount: {
+          type: "number",
+          description: "Total number of entries in the directory",
         },
         hasError: {
           type: "boolean",
           description: "True if an error was encountered during execution",
         },
       },
-      required: ["entries", "error", "hasError"],
+      required: ["entries", "totalCount", "hasError"],
       additionalProperties: false,
     },
 
     list_directory_with_sizes: {
       type: "object",
-      description:
-        "Get a detailed listing of all files and directories in a specified path, including sizes. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is useful for understanding directory structure and finding specific files within a directory. Only works within allowed directories.",
       properties: {
         entries: {
           type: "array",
-          description:
-            "List of directory entries with sizes parsed from MCP text output",
+          description: "List of directory entries with size information",
           items: {
             type: "object",
             properties: {
@@ -292,71 +254,68 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
                 type: "number",
                 description: "Size in bytes (0 for directories)",
               },
+              fullPath: {
+                type: "string",
+                description: "Full path to the entry",
+              },
             },
-            required: ["name", "type", "size"],
+            required: ["name", "type", "size", "fullPath"],
             additionalProperties: false,
           },
         },
-        error: {
-          type: ["string", "null"],
-          description: "Error message if listing failed",
+        totalSize: {
+          type: "number",
+          description: "Total size of all files in bytes",
+        },
+        totalCount: {
+          type: "number",
+          description: "Total number of entries",
         },
         hasError: {
           type: "boolean",
           description: "True if an error was encountered during execution",
         },
       },
-      required: ["entries", "error", "hasError"],
+      required: ["entries", "totalSize", "totalCount", "hasError"],
       additionalProperties: false,
     },
 
     directory_tree: {
       type: "object",
-      description:
-        "Get a recursive tree view of files and directories as a JSON structure. Each entry includes 'name', 'type' (file/directory), and 'children' for directories. Files have no children array, while directories always have a children array (which may be empty). The output is formatted with 2-space indentation for readability. Only works within allowed directories.",
       properties: {
-        entries: {
-          type: "array",
-          description:
-            "Flat list of all files and directories in the tree with full paths",
-          items: {
-            type: "object",
-            properties: {
-              name: {
-                type: "string",
-                description: "Name of the file or directory",
-              },
-              path: {
-                type: "string",
-                description: "Full path to the file or directory",
-              },
-              type: {
-                type: "string",
-                enum: ["file", "directory"],
-                description: "Type of entry",
-              },
-            },
-            required: ["name", "path", "type"],
-            additionalProperties: false,
-          },
+        tree: {
+          type: "string",
+          description: "The directory tree structure as a formatted string",
         },
-        error: {
-          type: ["string", "null"],
-          description: "Error message if tree generation failed",
+        totalFiles: {
+          type: "number",
+          description: "Total number of files in the tree",
+        },
+        totalDirectories: {
+          type: "number",
+          description: "Total number of directories in the tree",
+        },
+        rootPath: {
+          type: "string",
+          description: "Full path to the root directory",
         },
         hasError: {
           type: "boolean",
           description: "True if an error was encountered during execution",
         },
       },
-      required: ["entries", "error", "hasError"],
+      required: [
+        "tree",
+        "totalFiles",
+        "totalDirectories",
+        "rootPath",
+        "hasError",
+      ],
       additionalProperties: false,
     },
 
     move_file: {
       type: "object",
-      description:
-        "Move or rename files and directories. Can move files between directories and rename them in a single operation. If the destination exists, the operation will fail. Works across different directories and can be used for simple renaming within the same directory. Both source and destination must be within allowed directories.",
       properties: {
         success: {
           type: "boolean",
@@ -375,30 +334,17 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
           enum: ["moved", "renamed"],
           description: "Type of operation performed",
         },
-        error: {
-          type: ["string", "null"],
-          description: "Error message if move operation failed",
-        },
         hasError: {
           type: "boolean",
           description: "True if an error was encountered during execution",
         },
       },
-      required: [
-        "success",
-        "source",
-        "destination",
-        "operation",
-        "error",
-        "hasError",
-      ],
+      required: ["success", "source", "destination", "operation", "hasError"],
       additionalProperties: false,
     },
 
     search_files: {
       type: "object",
-      description:
-        "Recursively search for files and directories matching a pattern. Searches through all subdirectories from the starting path. The search is case-insensitive and matches partial names. Returns full paths to all matching items. Great for finding files when you don't know their exact location. Only searches within allowed directories.",
       properties: {
         matches: {
           type: "array",
@@ -420,10 +366,6 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
           type: "number",
           description: "Total number of matches found",
         },
-        error: {
-          type: ["string", "null"],
-          description: "Error message if search failed",
-        },
         hasError: {
           type: "boolean",
           description: "True if an error was encountered during execution",
@@ -434,7 +376,6 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
         "searchPath",
         "pattern",
         "totalMatches",
-        "error",
         "hasError",
       ],
       additionalProperties: false,
@@ -442,13 +383,7 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
 
     get_file_info: {
       type: "object",
-      description:
-        "Retrieve detailed metadata about a file or directory. Returns comprehensive information including size, creation time, last modified time, permissions, and type. This tool is perfect for understanding file characteristics without reading the actual content. Only works within allowed directories.",
       properties: {
-        exists: {
-          type: "boolean",
-          description: "Whether the file or directory exists",
-        },
         path: {
           type: "string",
           description: "Full path to the file",
@@ -493,17 +428,12 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
           required: ["readable", "writable", "executable"],
           additionalProperties: false,
         },
-        error: {
-          type: ["string", "null"],
-          description: "Error message if file info retrieval failed",
-        },
         hasError: {
           type: "boolean",
           description: "True if an error was encountered during execution",
         },
       },
       required: [
-        "exists",
         "path",
         "name",
         "type",
@@ -511,7 +441,6 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
         "createdAt",
         "modifiedAt",
         "permissions",
-        "error",
         "hasError",
       ],
       additionalProperties: false,
@@ -519,8 +448,6 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
 
     list_allowed_directories: {
       type: "object",
-      description:
-        "Returns the list of directories that this server is allowed to access. Subdirectories within these allowed directories are also accessible. Use this to understand which directories and their nested paths are available before trying to access files.",
       properties: {
         directories: {
           type: "array",
@@ -534,16 +461,12 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
           type: "number",
           description: "Number of allowed directories",
         },
-        error: {
-          type: ["string", "null"],
-          description: "Error message if listing failed",
-        },
         hasError: {
           type: "boolean",
           description: "True if an error was encountered during execution",
         },
       },
-      required: ["directories", "count", "error", "hasError"],
+      required: ["directories", "count", "hasError"],
       additionalProperties: false,
     },
   } as const;

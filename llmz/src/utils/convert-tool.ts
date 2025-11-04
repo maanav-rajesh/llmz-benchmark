@@ -26,7 +26,7 @@ import * as zod from "zod";
  * Creates an OpenAI-compatible chat completion response.
  */
 export function createChatCompletionResponse(
-  options: ResponseOptions,
+  options: ResponseOptions
 ): ChatCompletion {
   const {
     model,
@@ -73,7 +73,7 @@ export function createChatCompletionResponse(
  */
 export function convertJsonSchemaToZod(
   jsonSchema: Record<string, any> | undefined,
-  toolName?: string,
+  toolName?: string
 ): any {
   // Default schema if no parameters provided
   if (!jsonSchema || typeof jsonSchema !== "object") {
@@ -99,7 +99,7 @@ export function convertJsonSchemaToZod(
  */
 export async function convertOpenAIToolToLLMzTool(
   client: Client,
-  tool: ChatCompletionTool,
+  tool: ChatCompletionTool
 ): Promise<LLMzTool> {
   if (tool.type !== "function") {
     throw new Error("Only function tools are supported");
@@ -109,7 +109,7 @@ export async function convertOpenAIToolToLLMzTool(
   // Convert input schema
   const inputSchema = convertJsonSchemaToZod(
     parameters as Record<string, any> | undefined,
-    name,
+    name
   );
   // Save the schema to a file
   const outputSchema = convertJsonSchemaToZod(mcpToolOutputSchemas[name]);
@@ -166,7 +166,7 @@ export async function convertOpenAIToolToLLMzTool(
         (msg: ChatCompletionMessageParam) =>
           msg.role === "tool" &&
           "tool_call_id" in msg &&
-          msg.tool_call_id === toolCallId,
+          msg.tool_call_id === toolCallId
       );
 
       if (!toolResultMessage || !("content" in toolResultMessage)) {
@@ -214,14 +214,12 @@ export async function convertOpenAIToolToLLMzTool(
         throw new Error(`Error parsing tool output: ${error}`);
       }
       const jsonResponse = JSON.parse(parsedResponse.output_text);
-      console.log(
-        "[CONVERT-TOOL] Parsed response:",
-        jsonResponse
-      );
-
+      console.log("[CONVERT-TOOL] Parsed response:", jsonResponse);
 
       if (jsonResponse.hasError) {
-        throw new Error(`Tool ${name} returned an error: ${parsedResponse.output_text}`);
+        throw new Error(
+          `Tool ${name} returned an error: ${parsedResponse.output_text}`
+        );
       }
 
       return jsonResponse;
