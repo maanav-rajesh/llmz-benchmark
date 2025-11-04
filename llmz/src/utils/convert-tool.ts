@@ -218,7 +218,12 @@ export async function convertOpenAIToolToLLMzTool(
         console.error("[Error parsing tool output]", error);
         throw new Error(`Error parsing tool output: ${error}`);
       }
-      return JSON.parse(parsedResponse.output_text);
+      const returnedResult = JSON.parse(parsedResponse.output_text);
+      console.log(
+        "🚀 ~ convertOpenAIToolToLLMzTool ~ returnedResult:",
+        returnedResult
+      );
+      return returnedResult;
     },
   });
 }
