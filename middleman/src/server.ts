@@ -98,7 +98,8 @@ const handleChatCompletion = async (
 
   if (!hasToolMessages) {
     // Initial request - spawn llmz process
-    console.log("No tool messages found, spawning llmz process...");
+    console.log("[MIDDLEMAN] MCPMARK→LLMZ: Initial instruction");
+    console.log(JSON.stringify(requestBody, null, 2));
     try {
       spawnLLMz(requestBody);
     } catch (error) {
@@ -106,12 +107,18 @@ const handleChatCompletion = async (
     }
   } else {
     // Tool results received - publish to toolResultsQueue for llmz to consume
-    console.log("Tool messages found, publishing tool results to queue");
+    console.log("[MIDDLEMAN] MCPMARK→LLMZ: Tool results");
+    console.log(
+      JSON.stringify(
+        requestBody.messages[requestBody.messages.length - 1],
+        null,
+        2,
+      ),
+    );
     toolResultsQueue.publish(requestBody);
   }
 
   // Block and consume from response queue
-  console.log("Waiting for response from queue...");
   const response = await responseQueue.consume();
 
   // Return response to caller
@@ -129,19 +136,20 @@ const handleToolCalls = async (
   const completion = req.body;
 
   // Publish ChatCompletion to responseQueue (llmz → client)
-  console.log("Publishing response to responseQueue");
   responseQueue.publish(completion);
 
   // Block and wait for tool results from toolResultsQueue (client → llmz)
-  console.log("Waiting for tool results from toolResultsQueue...");
   if (completion.choices[0].finish_reason === "stop") {
+    console.log("[MIDDLEMAN] LLMZ→MCPMARK: Final response");
+    console.log(JSON.stringify(completion.choices[0].message, null, 2));
     return res.json();
   }
 
+  console.log("[MIDDLEMAN] LLMZ→MCPMARK: Tool call request");
+  console.log(JSON.stringify(completion.choices[0].message, null, 2));
   const toolResults = await toolResultsQueue.consume();
 
   // Return tool results back to llmz
-  console.log("Returning tool results to llmz");
   res.json(toolResults);
 };
 
