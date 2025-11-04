@@ -212,7 +212,7 @@ export async function convertOpenAIToolToLLMzTool(
         console.log("[CONVERT-TOOL] Raw MCP output:", toolCallOutput);
         console.log(
           "[CONVERT-TOOL] Parsed response:",
-          parsedResponse.output_text,
+          parsedResponse.output_text
         );
       } catch (error) {
         console.error("[Error parsing tool output]", error);
