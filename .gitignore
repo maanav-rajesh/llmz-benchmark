@@ -31,3 +31,8 @@ Thumbs.db
 # pnpm
 .pnpm-store/
 pnpm-lock.yaml
+
+# Benchmark results
+llmz/results/
+llmz/iteration_*.json
+llmz/final_result_*.json

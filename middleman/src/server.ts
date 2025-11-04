@@ -1,6 +1,7 @@
 import express, { Request, Response } from "express";
 import { spawn } from "child_process";
 import path from "path";
+import fs from "fs";
 import type {
   ChatCompletionCreateParamsNonStreaming,
   ChatCompletion,
@@ -155,6 +156,48 @@ const handleToolCalls = async (
 
 app.post("/tool-calls", handleToolCalls);
 app.post("/v1/tool-calls", handleToolCalls);
+
+// API endpoints for viewer
+app.get("/api/runs", (req: Request, res: Response) => {
+  const resultsDir = path.resolve(__dirname, "../../llmz/results");
+
+  try {
+    if (!fs.existsSync(resultsDir)) {
+      return res.json({ runs: [] });
+    }
+
+    const files = fs.readdirSync(resultsDir);
+    const runs = files
+      .filter((file) => file.startsWith("run_") && file.endsWith(".json"))
+      .sort()
+      .reverse(); // Most recent first
+
+    res.json({ runs });
+  } catch (error) {
+    console.error("Error listing runs:", error);
+    res.status(500).json({ error: "Failed to list runs" });
+  }
+});
+
+app.get("/api/runs/:runId", (req: Request, res: Response) => {
+  const { runId } = req.params;
+  const resultsDir = path.resolve(__dirname, "../../llmz/results");
+  const filePath = path.join(resultsDir, runId);
+
+  try {
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: "Run not found" });
+    }
+
+    const data = fs.readFileSync(filePath, "utf-8");
+    const runData = JSON.parse(data);
+
+    res.json(runData);
+  } catch (error) {
+    console.error("Error reading run:", error);
+    res.status(500).json({ error: "Failed to read run" });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`Middleman server is running on http://localhost:${PORT}`);

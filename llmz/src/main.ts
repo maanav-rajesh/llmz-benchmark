@@ -9,6 +9,7 @@ import type {
 import { convertOpenAIToolToLLMzTool } from "./utils/convert-tool";
 import type { ExecutionResult } from "llmz";
 import type { Tool as LLMzTool } from "llmz";
+import * as fs from "fs";
 
 dotenv.config();
 
@@ -86,6 +87,19 @@ async function main() {
   console.log("===========FINAL RESULT START=============");
   console.log(JSON.stringify(result.output, null, 2));
   console.log("===========FINAL RESULT END=============");
+
+  // save the result to a file
+  const runId = `run_${Date.now()}`;
+  if (!fs.existsSync("./results")) {
+    fs.mkdirSync("./results");
+  }
+  fs.writeFileSync(`./results/${runId}.json`, JSON.stringify(result, null, 2));
+
+  // Clean up old iteration_*.json files
+  const oldFiles = fs
+    .readdirSync(".")
+    .filter((f) => f.startsWith("iteration_"));
+  oldFiles.forEach((f) => fs.unlinkSync(f));
 
   console.log("sending final response");
 
