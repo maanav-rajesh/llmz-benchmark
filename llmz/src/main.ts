@@ -46,6 +46,8 @@ async function main() {
     // });
   }
 
+  instructions += `\n\n` + `The allowed working directory IS the test directory.`;
+  instructions += `\n\n` + `IMPORTANT: When dealing with the output of tools, your source of truth is the output schema. If the description and the output schema are not consistent, you should ALWAYS use the output schema.`;
 
   const client = new Client({
     token: process.env.BOTPRESS_TOKEN,
@@ -73,6 +75,7 @@ async function main() {
       console.log("===========ITERATION CODE END=============");
     },
     onExit: async (result) => {
+      console.log("RESULT:", result);
       if (result.result.success === false && result.result.error) {
         console.log("Throwing error on exit:", result.result.error);
         throw new Error(result.result.error);

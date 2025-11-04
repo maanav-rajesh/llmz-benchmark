@@ -12,7 +12,6 @@ import { z } from "@bpinternal/zui";
 import { randomUUID } from "node:crypto";
 import { Client } from "@botpress/client";
 import { mcpToolOutputSchemas } from "../generated-schemas/mcp-tool-output-schemas";
-import { Zai } from "@botpress/zai";
 import { OpenAI } from "openai";
 export interface ResponseOptions {
   model: string;
@@ -127,7 +126,7 @@ export async function convertOpenAIToolToLLMzTool(
 
   return new LLMzTool({
     name,
-    description: description || `Tool: ${name}`,
+    description: `Tool: ${name}`,
     input: inputSchema,
     output: outputSchema,
     handler: async (args: z.infer<typeof inputSchema>) => {
@@ -210,20 +209,22 @@ export async function convertOpenAIToolToLLMzTool(
 
         console.log("[CONVERT-TOOL] Tool:", name);
         console.log("[CONVERT-TOOL] Raw MCP output:", toolCallOutput);
-        console.log(
-          "[CONVERT-TOOL] Parsed response:",
-          parsedResponse.output_text
-        );
       } catch (error) {
         console.error("[Error parsing tool output]", error);
         throw new Error(`Error parsing tool output: ${error}`);
       }
-      const returnedResult = JSON.parse(parsedResponse.output_text);
+      const jsonResponse = JSON.parse(parsedResponse.output_text);
       console.log(
-        "🚀 ~ convertOpenAIToolToLLMzTool ~ returnedResult:",
-        returnedResult
+        "[CONVERT-TOOL] Parsed response:",
+        jsonResponse
       );
-      return returnedResult;
+
+
+      if (jsonResponse.hasError) {
+        throw new Error(`Tool ${name} returned an error: ${parsedResponse.output_text}`);
+      }
+
+      return jsonResponse;
     },
   });
 }
