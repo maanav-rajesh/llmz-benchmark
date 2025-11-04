@@ -1,6 +1,5 @@
 import * as readline from "readline";
 import { execute } from "llmz";
-import { CLIChat } from "./utils/cli-chat";
 import { Client } from "@botpress/client";
 import dotenv from "dotenv";
 import type {
@@ -9,7 +8,6 @@ import type {
 } from "openai/resources/chat/completions";
 import { convertOpenAIToolToLLMzTool } from "./utils/convert-tool";
 import type { ExecutionResult } from "llmz";
-import { z } from "@bpinternal/zui";
 import type { Tool as LLMzTool } from "llmz";
 
 dotenv.config();
@@ -32,9 +30,6 @@ async function main() {
   try {
     const parsedInput = JSON.parse(inputText.trim());
     requestData = parsedInput as ChatCompletionCreateParamsNonStreaming;
-    console.log("Parsed OpenAI chat completion request:");
-    console.log("Model:", requestData.model);
-    console.log("Messages:", requestData.messages.length);
   } catch (error) {
     console.error("Failed to parse input as JSON:", error);
     process.exit(1);
@@ -50,11 +45,6 @@ async function main() {
     // });
   }
 
-
-  instructions += "IMPORTANT: None of the tools will work outside allowed directories. Do not assume that your current working directory is allowed.\n\n";
-
-  instructions += "IMPORTANT: The tools will NOT throw errors if they fail. Instead, they will return a result with the hasError flag set to true.\n\n";
-  // instructions += "IMPORTANT: Your tools will return a result that can be any type, may contain miscellaneous information. ALWAYS RETURN A THINK ACTION AFTER CALLING A TOOL so that you can UNDERSTAND the result AND how to use it.\n\n";
 
   const client = new Client({
     token: process.env.BOTPRESS_TOKEN,
@@ -76,14 +66,26 @@ async function main() {
       loop: 10,
       timeout: 100000000,
     },
+    onIterationEnd: async (iteration) => {
+      console.log("===========ITERATION CODE START=============");
+      console.log(iteration.code);
+      console.log("===========ITERATION CODE END=============");
+    },
+    onExit: async (result) => {
+      if (result.result.success === false && result.result.error) {
+        console.log("Throwing error on exit:", result.result.error);
+        throw new Error(result.result.error);
+      }
+    },
     model: "openai:gpt-5-2025-08-07",
   });
-  console.log("[LLMz]\n");
-  for (const iteration of result.iterations) {
-    console.log("===========ITERATION START=============");
-    console.log(iteration.code);
-    console.log("===========ITERATION END=============");
-  }
+
+  const status = result.status;
+  console.log("Execution status:", status);
+
+  console.log("===========FINAL RESULT START=============");
+  console.log(JSON.stringify(result.output, null, 2));
+  console.log("===========FINAL RESULT END=============");
 
   console.log("sending final response");
 
@@ -132,4 +134,3 @@ main().catch((error) => {
   console.error("Error:", error);
   process.exit(1);
 });
-z
