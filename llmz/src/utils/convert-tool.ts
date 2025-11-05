@@ -8,7 +8,7 @@ import type {
   ChatCompletionContentPartText,
 } from "openai/resources/chat/completions";
 import { convertJsonSchemaToZod as jsonSchemaToZod } from "zod-from-json-schema";
-import { z } from "@bpinternal/zui";
+import { transforms, z } from "@bpinternal/zui";
 import { randomUUID } from "node:crypto";
 import { Client } from "@botpress/client";
 import { mcpToolOutputSchemas } from "../generated-schemas/mcp-tool-output-schemas";
@@ -107,15 +107,16 @@ export async function convertOpenAIToolToLLMzTool(
   const { name, description, parameters } = tool.function;
 
   // Convert input schema
-  const inputSchema = convertJsonSchemaToZod(
+  const inputSchema = transforms.fromJSONSchema(
     parameters as Record<string, any> | undefined,
     name,
   );
   // Save the schema to a file
-  const outputSchema = convertJsonSchemaToZod(mcpToolOutputSchemas[name]);
+  const outputSchema = transforms.fromJSONSchema(mcpToolOutputSchemas[name]);
 
   try {
-    const resultingSchema = zod.toJSONSchema(outputSchema);
+    const resultingSchema = transforms.toJSONSchema(outputSchema);
+    console.log("🚀 ~ convertOpenAIToolToLLMzTool ~ resultingSchema:", resultingSchema)
   } catch (error) {
     console.error(`[Error converting schema] name: ${name}`, error);
     throw new Error(`Error converting schema: ${error}`);

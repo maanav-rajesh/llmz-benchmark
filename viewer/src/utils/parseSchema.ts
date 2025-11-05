@@ -1,56 +1,40 @@
-// Parse Zui schema to readable string format
+// Recursively remove x-zui, additionalProperties, and required from schema
+function removeZuiMetadata(obj: any): any {
+  if (Array.isArray(obj)) {
+    return obj.map(removeZuiMetadata);
+  }
+
+  if (obj && typeof obj === "object") {
+    const cleaned: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (
+        key !== "x-zui" &&
+        key !== "additionalProperties" &&
+        key !== "required"
+      ) {
+        cleaned[key] = removeZuiMetadata(value);
+      }
+    }
+    return cleaned;
+  }
+
+  return obj;
+}
+
+// Parse Zui schema to readable TypeScript type
 export function parseZuiSchema(schema: any): string {
   if (!schema || typeof schema !== "object") {
     return "any";
   }
 
-  const def = schema.def;
-
-  if (!def || !def.type) {
+  try {
+    const cleaned = removeZuiMetadata(schema);
+    // Return just the properties object for brevity
+    const output = cleaned.properties || cleaned;
+    return JSON.stringify(output, null, 2);
+  } catch (error) {
+    console.warn("Failed to parse Zui schema:", error);
     return "any";
-  }
-
-  switch (def.type) {
-    case "string":
-      return "string";
-
-    case "number":
-      return "number";
-
-    case "boolean":
-      return "boolean";
-
-    case "object":
-      if (!def.shape || typeof def.shape !== "object") {
-        return "object";
-      }
-
-      const props = Object.entries(def.shape).map(
-        ([key, value]: [string, any]) => {
-          const type = parseZuiSchema(value);
-          const isOptional = value?.def?.type === "optional";
-          return `${key}${isOptional ? "?" : ""}: ${type}`;
-        },
-      );
-
-      return `{ ${props.join(", ")} }`;
-
-    case "array":
-      const itemType = def.itemType ? parseZuiSchema(def.itemType) : "any";
-      return `${itemType}[]`;
-
-    case "optional":
-      return parseZuiSchema(def.innerType);
-
-    case "union":
-      if (def.options && Array.isArray(def.options)) {
-        const types = def.options.map((opt: any) => parseZuiSchema(opt));
-        return types.join(" | ");
-      }
-      return "any";
-
-    default:
-      return def.type;
   }
 }
 
