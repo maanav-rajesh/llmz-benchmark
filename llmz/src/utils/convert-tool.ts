@@ -21,7 +21,11 @@ export interface ResponseOptions {
   promptTokens?: number;
   completionTokens?: number;
 }
-import * as zod from "zod";
+
+export const errorSchema = z.object({
+  error: z.string(),
+});
+
 /**
  * Creates an OpenAI-compatible chat completion response.
  */
@@ -129,6 +133,7 @@ export async function convertOpenAIToolToLLMzTool(
   // const outputJSONSchema = JSON.parse(outputSchemaString);
   // const outputSchemaZod = convertJsonSchemaToZod(outputJSONSchema, name);
 
+
   return new LLMzTool({
     name,
     description: `Tool: ${name}`,
@@ -155,7 +160,7 @@ export async function convertOpenAIToolToLLMzTool(
       });
 
       // Send tool call to middleman and wait for tool results
-      const result = await fetch("http://localhost:3000/tool-calls", {
+      const result = await fetch("http://localhost:3001/tool-calls", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -187,6 +192,10 @@ export async function convertOpenAIToolToLLMzTool(
         parsedContent.content as ChatCompletionContentPartText[];
       const toolCallOutput = contentText[0].text;
 
+      const isError = toolCallOutput.toLowerCase().startsWith("error");
+      if (isError) {
+        throw new Error(toolCallOutput);
+      }
       const openai = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY,
       });
@@ -223,12 +232,6 @@ export async function convertOpenAIToolToLLMzTool(
       }
       const jsonResponse = JSON.parse(parsedResponse.output_text);
       console.log("[CONVERT-TOOL] Parsed response:", jsonResponse);
-
-      if (jsonResponse.hasError) {
-        throw new Error(
-          `Tool ${name} returned an error: ${parsedResponse.output_text}`
-        );
-      }
 
       return jsonResponse;
     },

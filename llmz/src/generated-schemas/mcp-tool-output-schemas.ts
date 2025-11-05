@@ -9,16 +9,8 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
           type: "string",
           description: "The text content of the file (empty string if error)",
         },
-        error: {
-          type: ["string", "null"],
-          description: "Error message if file reading failed",
-        },
-        hasError: {
-          type: "boolean",
-          description: "True if an error was encountered during execution",
-        },
       },
-      required: ["content", "error", "hasError"],
+      required: ["content"],
       additionalProperties: false,
     },
 
@@ -39,16 +31,8 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
           type: "number",
           description: "Total number of lines in the file",
         },
-        error: {
-          type: ["string", "null"],
-          description: "Error message if file reading failed",
-        },
-        hasError: {
-          type: "boolean",
-          description: "True if an error was encountered during execution",
-        },
       },
-      required: ["content", "encoding", "lineCount", "error", "hasError"],
+      required: ["content", "encoding", "lineCount"],
       additionalProperties: false,
     },
 
@@ -70,16 +54,8 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
           type: "number",
           description: "File size in bytes",
         },
-        error: {
-          type: ["string", "null"],
-          description: "Error message if file reading failed",
-        },
-        hasError: {
-          type: "boolean",
-          description: "True if an error was encountered during execution",
-        },
       },
-      required: ["data", "mimeType", "size", "error", "hasError"],
+      required: ["data", "mimeType", "size"],
       additionalProperties: false,
     },
 
@@ -102,12 +78,8 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
                 type: ["string", "null"],
                 description: "File content if successfully read",
               },
-              error: {
-                type: ["string", "null"],
-                description: "Error message if reading failed for this file",
-              },
             },
-            required: ["path", "content", "error"],
+            required: ["path", "content"],
             additionalProperties: false,
           },
         },
@@ -119,12 +91,8 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
           type: "number",
           description: "Number of files successfully read",
         },
-        hasError: {
-          type: "boolean",
-          description: "True if an error was encountered during execution",
-        },
       },
-      required: ["results", "totalFiles", "successCount", "hasError"],
+      required: ["results", "totalFiles", "successCount"],
       additionalProperties: false,
     },
 
@@ -145,16 +113,8 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
           type: "number",
           description: "Number of bytes written to the file",
         },
-        error: {
-          type: ["string", "null"],
-          description: "Error message if file writing failed",
-        },
-        hasError: {
-          type: "boolean",
-          description: "True if an error was encountered during execution",
-        },
       },
-      required: ["success", "path", "bytesWritten", "error", "hasError"],
+      required: ["success", "path", "bytesWritten"],
       additionalProperties: false,
     },
 
@@ -179,23 +139,8 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
           type: "number",
           description: "Total number of edits requested",
         },
-        error: {
-          type: ["string", "null"],
-          description: "Error message if editing failed",
-        },
-        hasError: {
-          type: "boolean",
-          description: "True if an error was encountered during execution",
-        },
       },
-      required: [
-        "success",
-        "diff",
-        "editsApplied",
-        "totalEdits",
-        "error",
-        "hasError",
-      ],
+      required: ["success", "diff", "editsApplied", "totalEdits"],
       additionalProperties: false,
     },
 
@@ -216,16 +161,8 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
           type: "boolean",
           description: "True if newly created, false if already existed",
         },
-        error: {
-          type: ["string", "null"],
-          description: "Error message if directory creation failed",
-        },
-        hasError: {
-          type: "boolean",
-          description: "True if an error was encountered during execution",
-        },
       },
-      required: ["success", "path", "created", "error", "hasError"],
+      required: ["success", "path", "created"],
       additionalProperties: false,
     },
 
@@ -254,16 +191,8 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
             additionalProperties: false,
           },
         },
-        error: {
-          type: ["string", "null"],
-          description: "Error message if listing failed",
-        },
-        hasError: {
-          type: "boolean",
-          description: "True if an error was encountered during execution",
-        },
       },
-      required: ["entries", "error", "hasError"],
+      required: ["entries"],
       additionalProperties: false,
     },
 
@@ -297,28 +226,20 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
             additionalProperties: false,
           },
         },
-        error: {
-          type: ["string", "null"],
-          description: "Error message if listing failed",
-        },
-        hasError: {
-          type: "boolean",
-          description: "True if an error was encountered during execution",
-        },
       },
-      required: ["entries", "error", "hasError"],
+      required: ["entries"],
       additionalProperties: false,
     },
 
     directory_tree: {
       type: "object",
       description:
-        "Get a recursive tree view of files and directories as a JSON structure. Each entry includes 'name', 'type' (file/directory), and 'children' for directories. Files have no children array, while directories always have a children array (which may be empty). The output is formatted with 2-space indentation for readability. Only works within allowed directories.",
+        "Get a recursive tree view of files and directories as a JSON structure. WITH RELATIVE PATHS FROM THE INPUT PATH ARGUMENT. Each entry includes 'name', 'type' (file/directory), and 'children' for directories. Files have no children array, while directories always have a children array (which may be empty). The output is formatted with 2-space indentation for readability. Only works within allowed directories.",
       properties: {
         entries: {
           type: "array",
           description:
-            "Flat list of all files and directories in the tree with full paths",
+            "Flat list of all files and directories in the tree with relative paths",
           items: {
             type: "object",
             properties: {
@@ -328,7 +249,7 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
               },
               path: {
                 type: "string",
-                description: "Full path to the file or directory",
+                description: "RELATIVE PATH FROM THE INPUT PATH ARGUMENT to the file or directory",
               },
               type: {
                 type: "string",
@@ -340,16 +261,8 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
             additionalProperties: false,
           },
         },
-        error: {
-          type: ["string", "null"],
-          description: "Error message if tree generation failed",
-        },
-        hasError: {
-          type: "boolean",
-          description: "True if an error was encountered during execution",
-        },
       },
-      required: ["entries", "error", "hasError"],
+      required: ["entries"],
       additionalProperties: false,
     },
 
@@ -375,23 +288,8 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
           enum: ["moved", "renamed"],
           description: "Type of operation performed",
         },
-        error: {
-          type: ["string", "null"],
-          description: "Error message if move operation failed",
-        },
-        hasError: {
-          type: "boolean",
-          description: "True if an error was encountered during execution",
-        },
       },
-      required: [
-        "success",
-        "source",
-        "destination",
-        "operation",
-        "error",
-        "hasError",
-      ],
+      required: ["success", "source", "destination", "operation"],
       additionalProperties: false,
     },
 
@@ -420,23 +318,8 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
           type: "number",
           description: "Total number of matches found",
         },
-        error: {
-          type: ["string", "null"],
-          description: "Error message if search failed",
-        },
-        hasError: {
-          type: "boolean",
-          description: "True if an error was encountered during execution",
-        },
       },
-      required: [
-        "matches",
-        "searchPath",
-        "pattern",
-        "totalMatches",
-        "error",
-        "hasError",
-      ],
+      required: ["matches", "searchPath", "pattern", "totalMatches"],
       additionalProperties: false,
     },
 
@@ -493,14 +376,6 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
           required: ["readable", "writable", "executable"],
           additionalProperties: false,
         },
-        error: {
-          type: ["string", "null"],
-          description: "Error message if file info retrieval failed",
-        },
-        hasError: {
-          type: "boolean",
-          description: "True if an error was encountered during execution",
-        },
       },
       required: [
         "exists",
@@ -511,8 +386,6 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
         "createdAt",
         "modifiedAt",
         "permissions",
-        "error",
-        "hasError",
       ],
       additionalProperties: false,
     },
@@ -534,16 +407,8 @@ export const mcpToolOutputSchemas: Record<string, { [key: string]: unknown }> =
           type: "number",
           description: "Number of allowed directories",
         },
-        error: {
-          type: ["string", "null"],
-          description: "Error message if listing failed",
-        },
-        hasError: {
-          type: "boolean",
-          description: "True if an error was encountered during execution",
-        },
       },
-      required: ["directories", "count", "error", "hasError"],
+      required: ["directories", "count"],
       additionalProperties: false,
     },
   } as const;

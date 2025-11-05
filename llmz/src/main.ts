@@ -1,5 +1,5 @@
 import * as readline from "readline";
-import { execute } from "llmz";
+import { execute, Exit, ThinkExit } from "llmz";
 import { Client } from "@botpress/client";
 import dotenv from "dotenv";
 import type {
@@ -60,8 +60,8 @@ async function main() {
 
   instructions +=
     `\n\n` + `The allowed working directory IS the test directory.`;
-  instructions += `\n\n` + `Check the return type of every tool call. Do not assume the return type of a tool call.`;
-
+  instructions +=
+    `\n\n` + `IMPORTANT: THINK after every tool call. UNDERSTAND the results and/or errors before continuing. THINK (i.e return with a "think" exit) even in case of errors. This is imperative.`;
   const client = new Client({
     token: process.env.BOTPRESS_TOKEN,
     workspaceId: process.env.BOTPRESS_WORKSPACE_ID,
@@ -150,8 +150,8 @@ async function main() {
     },
   };
 
-  // Send ChatCompletion to middleman with session_id
-  await fetch("http://localhost:3000/tool-calls", {
+  // Send ChatCompletion to middleman
+  await fetch("http://localhost:3001/tool-calls", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
