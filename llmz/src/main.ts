@@ -28,9 +28,21 @@ async function main() {
 
   // Parse the input text as JSON
   let requestData: ChatCompletionCreateParamsNonStreaming;
+  let sessionId: string;
   try {
     const parsedInput = JSON.parse(inputText.trim());
     requestData = parsedInput as ChatCompletionCreateParamsNonStreaming;
+
+    // CRITICAL: Extract and validate session_id
+    sessionId = (parsedInput as any).session_id || process.env.SESSION_ID || "";
+    if (!sessionId) {
+      console.error(
+        "FATAL: No session_id provided in request or SESSION_ID env",
+      );
+      process.exit(1);
+    }
+
+    console.log(`[LLMZ] Session ID: ${sessionId}`);
   } catch (error) {
     console.error("Failed to parse input as JSON:", error);
     process.exit(1);
@@ -46,9 +58,6 @@ async function main() {
     // });
   }
 
-  instructions += `\n\n` + `The allowed working directory IS the test directory.`;
-  instructions += `\n\n` + `IMPORTANT: When dealing with the output of tools, your source of truth is the output schema. If the description and the output schema are not consistent, you should ALWAYS use the output schema.`;
-
   const client = new Client({
     token: process.env.BOTPRESS_TOKEN,
     workspaceId: process.env.BOTPRESS_WORKSPACE_ID,
@@ -57,7 +66,7 @@ async function main() {
 
   const tools: LLMzTool[] = [];
   for (const tool of requestData.tools ?? []) {
-    tools.push(await convertOpenAIToolToLLMzTool(client, tool));
+    tools.push(await convertOpenAIToolToLLMzTool(client, tool, sessionId));
   }
 
   let result: ExecutionResult | undefined;
@@ -137,13 +146,16 @@ async function main() {
     },
   };
 
-  // Send ChatCompletion to middleman
+  // Send ChatCompletion to middleman with session_id
   await fetch("http://localhost:3000/tool-calls", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(response),
+    body: JSON.stringify({
+      ...response,
+      session_id: sessionId,
+    }),
   });
 }
 

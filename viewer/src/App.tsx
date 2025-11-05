@@ -35,7 +35,7 @@ export default function App() {
   }, [selectedRun])
 
   const totalDuration = runData?.context.iterations.reduce(
-    (acc, it) => acc + (it.duration || 0),
+    (acc, it) => acc + ((it.ended_ts - it.started_ts) || 0),
     0
   )
   const totalDurationSec = totalDuration ? (totalDuration / 1000).toFixed(2) : '0'
@@ -126,15 +126,19 @@ export default function App() {
                         <div className="tool-schemas">
                           <div className="schema-block">
                             <div className="schema-label">Input:</div>
-                            <code className="schema-code" style={{ fontSize: '11px', wordBreak: 'break-word' }}>
-                              {parseZuiSchema(tool.input)}
-                            </code>
+                            <pre style={{ margin: 0, fontSize: '11px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                              <code className="schema-code">
+                                {parseZuiSchema(tool.input)}
+                              </code>
+                            </pre>
                           </div>
                           <div className="schema-block">
                             <div className="schema-label">Output:</div>
-                            <code className="schema-code" style={{ fontSize: '11px', wordBreak: 'break-word' }}>
-                              {parseZuiSchema(tool.output)}
-                            </code>
+                            <pre style={{ margin: 0, fontSize: '11px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                              <code className="schema-code">
+                                {parseZuiSchema(tool.output)}
+                              </code>
+                            </pre>
                           </div>
                         </div>
                       </div>
@@ -156,30 +160,32 @@ export default function App() {
               ))}
             </div>
 
-            {/* Final Result */}
-            <div className="card">
-              <h2 style={{ marginTop: 0, marginBottom: '16px' }}>Final Result</h2>
+            {/* Final Result - only show if result structure exists */}
+            {runData.result?.exit && (
+              <div className="card">
+                <h2 style={{ marginTop: 0, marginBottom: '16px' }}>Final Result</h2>
 
-              <div className="info-grid" style={{ marginBottom: '16px' }}>
-                <div className="info-item">
-                  <div className="info-label">Exit Type</div>
-                  <div className="info-value monospace">{runData.result.exit.name}</div>
-                </div>
-                <div className="info-item">
-                  <div className="info-label">Status</div>
-                  <div className="info-value">
-                    <span className={`status-badge ${runData.status === 'success' ? 'success' : 'error'}`}>
-                      {runData.status === 'success' ? '✅ Success' : '⚠️ Failed'}
-                    </span>
+                <div className="info-grid" style={{ marginBottom: '16px' }}>
+                  <div className="info-item">
+                    <div className="info-label">Exit Type</div>
+                    <div className="info-value monospace">{runData.result.exit.name}</div>
+                  </div>
+                  <div className="info-item">
+                    <div className="info-label">Status</div>
+                    <div className="info-value">
+                      <span className={`status-badge ${runData.status === 'success' ? 'success' : 'error'}`}>
+                        {runData.status === 'success' ? '✅ Success' : '⚠️ Failed'}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="code-label">Result Value:</div>
-              <pre className="json-block">
-                {JSON.stringify(runData.result.result, null, 2)}
-              </pre>
-            </div>
+                <div className="code-label">Result Value:</div>
+                <pre className="json-block">
+                  {JSON.stringify(runData.result.result, null, 2)}
+                </pre>
+              </div>
+            )}
           </>
         )}
 

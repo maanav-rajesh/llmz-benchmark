@@ -5,6 +5,24 @@ interface RunSelectorProps {
   selectedRun: string | null
 }
 
+const formatRunName = (filename: string): string => {
+  // Extract timestamp from "run_1730764800000.json"
+  const match = filename.match(/run_(\d+)\.json/)
+  if (match) {
+    const timestamp = parseInt(match[1])
+    const date = new Date(timestamp)
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    })
+  }
+  return filename // Fallback if parsing fails
+}
+
 export default function RunSelector({ onSelectRun, selectedRun }: RunSelectorProps) {
   const [runs, setRuns] = useState<string[]>([])
 
@@ -33,7 +51,7 @@ export default function RunSelector({ onSelectRun, selectedRun }: RunSelectorPro
         <option value="">Select a run...</option>
         {runs.map((run) => (
           <option key={run} value={run}>
-            {run}
+            {formatRunName(run)}
           </option>
         ))}
       </select>

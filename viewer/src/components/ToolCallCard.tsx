@@ -36,7 +36,9 @@ export default function ToolCallCard({ toolCall, tools }: ToolCallCardProps) {
             {inputSchema && (
               <div className="schema-block">
                 <div className="schema-label">Input Schema:</div>
-                <code className="schema-code">{inputSchema}</code>
+                <pre style={{ margin: 0, fontSize: '11px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                  <code className="schema-code">{inputSchema}</code>
+                </pre>
               </div>
             )}
             <div className="schema-block">
@@ -52,7 +54,9 @@ export default function ToolCallCard({ toolCall, tools }: ToolCallCardProps) {
               {outputSchema && (
                 <div className="schema-block">
                   <div className="schema-label">Output Schema:</div>
-                  <code className="schema-code">{outputSchema}</code>
+                  <pre style={{ margin: 0, fontSize: '11px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                    <code className="schema-code">{outputSchema}</code>
+                  </pre>
                 </div>
               )}
               <div className="schema-block">
