@@ -100,6 +100,7 @@ export function convertJsonSchemaToZod(
 export async function convertOpenAIToolToLLMzTool(
   client: Client,
   tool: ChatCompletionTool,
+  sessionId: string,
 ): Promise<LLMzTool> {
   if (tool.type !== "function") {
     throw new Error("Only function tools are supported");
@@ -116,7 +117,10 @@ export async function convertOpenAIToolToLLMzTool(
 
   try {
     const resultingSchema = transforms.toJSONSchema(outputSchema);
-    console.log("🚀 ~ convertOpenAIToolToLLMzTool ~ resultingSchema:", resultingSchema)
+    console.log(
+      "🚀 ~ convertOpenAIToolToLLMzTool ~ resultingSchema:",
+      resultingSchema,
+    );
   } catch (error) {
     console.error(`[Error converting schema] name: ${name}`, error);
     throw new Error(`Error converting schema: ${error}`);
@@ -156,7 +160,10 @@ export async function convertOpenAIToolToLLMzTool(
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(response),
+        body: JSON.stringify({
+          ...response,
+          session_id: sessionId,
+        }),
       });
 
       const resultData: ChatCompletionCreateParamsNonStreaming =
@@ -215,14 +222,12 @@ export async function convertOpenAIToolToLLMzTool(
         throw new Error(`Error parsing tool output: ${error}`);
       }
       const jsonResponse = JSON.parse(parsedResponse.output_text);
-      console.log(
-        "[CONVERT-TOOL] Parsed response:",
-        jsonResponse
-      );
-
+      console.log("[CONVERT-TOOL] Parsed response:", jsonResponse);
 
       if (jsonResponse.hasError) {
-        throw new Error(`Tool ${name} returned an error: ${parsedResponse.output_text}`);
+        throw new Error(
+          `Tool ${name} returned an error: ${parsedResponse.output_text}`,
+        );
       }
 
       return jsonResponse;
