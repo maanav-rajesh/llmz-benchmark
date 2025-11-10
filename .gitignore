@@ -36,3 +36,6 @@ pnpm-lock.yaml
 llmz/results/
 llmz/iteration_*.json
 llmz/final_result_*.json
+
+# MCPMark results
+relevant-results/

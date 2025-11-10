@@ -113,18 +113,17 @@ export async function convertOpenAIToolToLLMzTool(
 
   // Convert input schema
   const inputSchema = transforms.fromJSONSchema(
-    parameters as Record<string, any> | undefined,
-    name
+    parameters as Record<string, any> | undefined
   );
   // Save the schema to a file
   const outputSchema = transforms.fromJSONSchema(mcpToolOutputSchemas[name]);
 
   try {
-    const resultingSchema = transforms.toJSONSchema(outputSchema);
-    console.log(
-      "🚀 ~ convertOpenAIToolToLLMzTool ~ resultingSchema:",
-      resultingSchema
-    );
+    // const resultingSchema = transforms.toJSONSchema(outputSchema);
+    // console.log(
+    //   "🚀 ~ convertOpenAIToolToLLMzTool ~ resultingSchema:",
+    //   resultingSchema
+    // );
   } catch (error) {
     console.error(`[Error converting schema] name: ${name}`, error);
     throw new Error(`Error converting schema: ${error}`);
@@ -132,7 +131,6 @@ export async function convertOpenAIToolToLLMzTool(
 
   // const outputJSONSchema = JSON.parse(outputSchemaString);
   // const outputSchemaZod = convertJsonSchemaToZod(outputJSONSchema, name);
-
 
   return new LLMzTool({
     name,
@@ -224,14 +222,14 @@ export async function convertOpenAIToolToLLMzTool(
           },
         });
 
-        console.log("[CONVERT-TOOL] Tool:", name);
-        console.log("[CONVERT-TOOL] Raw MCP output:", toolCallOutput);
+        // console.log("[CONVERT-TOOL] Tool:", name);
+        // console.log("[CONVERT-TOOL] Raw MCP output:", toolCallOutput);
       } catch (error) {
         console.error("[Error parsing tool output]", error);
         throw new Error(`Error parsing tool output: ${error}`);
       }
       const jsonResponse = JSON.parse(parsedResponse.output_text);
-      console.log("[CONVERT-TOOL] Parsed response:", jsonResponse);
+      // console.log("[CONVERT-TOOL] Parsed response:", jsonResponse);
 
       return jsonResponse;
     },

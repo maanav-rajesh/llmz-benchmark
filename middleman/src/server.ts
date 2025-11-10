@@ -163,8 +163,8 @@ const handleChatCompletion = async (
 
   if (!hasToolMessages) {
     // Initial request - spawn llmz process
-    console.log(`[MIDDLEMAN] [${sessionId}] MCPMARK→LLMZ: Initial instruction`);
-    console.log(JSON.stringify(requestBody, null, 2));
+    // console.log(`[MIDDLEMAN] [${sessionId}] MCPMARK→LLMZ: Initial instruction`);
+    // console.log(JSON.stringify(requestBody, null, 2));
     try {
       spawnLLMz(requestBody, sessionId);
     } catch (error) {
@@ -172,14 +172,14 @@ const handleChatCompletion = async (
     }
   } else {
     // Tool results received - publish to THIS session's toolResultsQueue
-    console.log(`[MIDDLEMAN] [${sessionId}] MCPMARK→LLMZ: Tool results`);
-    console.log(
-      JSON.stringify(
-        requestBody.messages[requestBody.messages.length - 1],
-        null,
-        2,
-      ),
-    );
+    // console.log(`[MIDDLEMAN] [${sessionId}] MCPMARK→LLMZ: Tool results`);
+    // console.log(
+    //   JSON.stringify(
+    //     requestBody.messages[requestBody.messages.length - 1],
+    //     null,
+    //     2,
+    //   ),
+    // );
     queues.toolResults.publish(requestBody);
   }
 
@@ -204,7 +204,7 @@ const handleToolCalls = async (
   const sessionId = (completion as any).session_id;
   if (!sessionId) {
     console.error("[MIDDLEMAN] ERROR: Tool call missing session_id");
-    console.error("Completion body:", JSON.stringify(completion, null, 2));
+    // console.error("Completion body:", JSON.stringify(completion, null, 2));
     return res.status(400).json({
       error: "Missing session_id - parallelism requires session isolation",
     } as any);
@@ -218,16 +218,16 @@ const handleToolCalls = async (
 
   // Block and wait for tool results from THIS session's toolResultsQueue (client → llmz)
   if (completion.choices[0].finish_reason === "stop") {
-    console.log(`[MIDDLEMAN] [${sessionId}] LLMZ→MCPMARK: Final response`);
-    console.log(JSON.stringify(completion.choices[0].message, null, 2));
+    // console.log(`[MIDDLEMAN] [${sessionId}] LLMZ→MCPMARK: Final response`);
+    // console.log(JSON.stringify(completion.choices[0].message, null, 2));
 
     // Final message - cleanup session after response sent
     setTimeout(() => cleanupSession(sessionId), 5000);
     return res.json({} as any);
   }
 
-  console.log(`[MIDDLEMAN] [${sessionId}] LLMZ→MCPMARK: Tool call request`);
-  console.log(JSON.stringify(completion.choices[0].message, null, 2));
+  // console.log(`[MIDDLEMAN] [${sessionId}] LLMZ→MCPMARK: Tool call request`);
+  // console.log(JSON.stringify(completion.choices[0].message, null, 2));
   const toolResults = await queues.toolResults.consume();
 
   // Return tool results back to llmz

@@ -4,10 +4,9 @@
   "private": true,
   "description": "LLMZ Benchmark Workspace",
   "scripts": {
-    "preinstall": "git submodule update --init --recursive",
-    "postinstall": "cd mcpmark && python3 -m venv .venv && .venv/bin/pip install -e .",
-    "dev": "concurrently \"pnpm dev:middleman\" \"cd mcpmark && .venv/bin/python -m pipeline --mcp filesystem --models gpt-5 --tasks file_property/size_classification --k 1\" --names \"middleman,benchmark\" --prefix-colors \"cyan,yellow\"",
-    "dev:benchmark": "concurrently \"pnpm dev:middleman\" \"cd mcpmark && .venv/bin/python -m pipeline --mcp filesystem --models gpt-5 --tasks all --k 1 --max-workers 30\" --names \"middleman,benchmark\" --prefix-colors \"cyan,yellow\"",
+    "postinstall": "cd mcpmark && python3.11 -m venv .venv && .venv/bin/pip install -e .",
+    "dev": "concurrently \"pnpm dev:middleman\" \"cd mcpmark && .venv/bin/python -m pipeline --mcp filesystem --models gpt-5 --tasks music_report --k 1\" --names \"middleman,benchmark\" --prefix-colors \"cyan,yellow\"",
+    "dev:benchmark": "concurrently \"pnpm dev:middleman\" \"cd mcpmark && .venv/bin/python -m pipeline --mcp filesystem --models gpt-5 --tasks all --k 1 --max-workers 8\" --names \"middleman,benchmark\" --prefix-colors \"cyan,yellow\"",
     "dev:watch": "nodemon",
     "start:middleman": "pnpm --filter middleman start",
     "start:llmz": "pnpm --filter llmz start",
