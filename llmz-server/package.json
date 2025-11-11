@@ -1,7 +1,7 @@
 {
-  "name": "middleman",
+  "name": "llmz-server",
   "version": "1.0.0",
-  "description": "Middleman Express Server",
+  "description": "LLMz Express Server",
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc",

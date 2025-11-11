@@ -1,4 +1,3 @@
 packages:
-  - 'middleman'
-  - 'llmz'
+  - 'llmz-server'
   - 'viewer'
