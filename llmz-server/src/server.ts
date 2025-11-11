@@ -7,9 +7,10 @@ import type {
   ChatCompletion,
   ChatCompletionMessageParam,
 } from "openai/resources/chat/completions";
+import { runLLMz } from "./run-llmz";
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 app.use(express.json({ limit: "1gb" }));
 
@@ -46,7 +47,7 @@ interface SessionQueues {
 // Session-based queue management
 const sessionQueues = new Map<string, SessionQueues>();
 
-function getOrCreateSessionQueues(sessionId: string): SessionQueues {
+export function getOrCreateSessionQueues(sessionId: string): SessionQueues {
   if (!sessionQueues.has(sessionId)) {
     console.log(`[MIDDLEMAN] Creating new session: ${sessionId}`);
     sessionQueues.set(sessionId, {
@@ -66,20 +67,17 @@ function cleanupSession(sessionId: string): void {
 }
 
 // Cleanup stale sessions (older than 1 hour)
-setInterval(
-  () => {
-    const now = Date.now();
-    const staleThreshold = 60 * 60 * 1000; // 1 hour
+setInterval(() => {
+  const now = Date.now();
+  const staleThreshold = 60 * 60 * 1000; // 1 hour
 
-    for (const [sessionId, queues] of sessionQueues.entries()) {
-      if (now - queues.spawnedAt > staleThreshold) {
-        console.log(`[MIDDLEMAN] Cleaning up stale session: ${sessionId}`);
-        sessionQueues.delete(sessionId);
-      }
+  for (const [sessionId, queues] of sessionQueues.entries()) {
+    if (now - queues.spawnedAt > staleThreshold) {
+      console.log(`[MIDDLEMAN] Cleaning up stale session: ${sessionId}`);
+      sessionQueues.delete(sessionId);
     }
-  },
-  5 * 60 * 1000,
-); // Check every 5 minutes
+  }
+}, 5 * 60 * 1000); // Check every 5 minutes
 
 // Helper to check if message contains tool calls
 function hasToolCalls(message: ChatCompletionMessageParam): boolean {
@@ -96,7 +94,7 @@ function containsToolMessages(messages: ChatCompletionMessageParam[]): boolean {
 // Spawn llmz process and pass request via stdin
 async function spawnLLMz(
   request: ChatCompletionCreateParamsNonStreaming,
-  sessionId: string,
+  sessionId: string
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const llmzProcess = spawn("pnpm", ["dev"], {
@@ -141,7 +139,7 @@ async function spawnLLMz(
 
 const handleChatCompletion = async (
   req: Request<{}, {}, ChatCompletionCreateParamsNonStreaming>,
-  res: Response<ChatCompletion>,
+  res: Response<ChatCompletion>
 ) => {
   const requestBody = req.body;
 
@@ -162,80 +160,27 @@ const handleChatCompletion = async (
   const hasToolMessages = containsToolMessages(requestBody.messages);
 
   if (!hasToolMessages) {
-    // Initial request - spawn llmz process
-    // console.log(`[MIDDLEMAN] [${sessionId}] MCPMARK→LLMZ: Initial instruction`);
-    // console.log(JSON.stringify(requestBody, null, 2));
     try {
-      spawnLLMz(requestBody, sessionId);
+      runLLMz(requestBody, sessionId);
     } catch (error) {
       console.error(`[${sessionId}] Error spawning llmz:`, error);
     }
   } else {
-    // Tool results received - publish to THIS session's toolResultsQueue
-    // console.log(`[MIDDLEMAN] [${sessionId}] MCPMARK→LLMZ: Tool results`);
-    // console.log(
-    //   JSON.stringify(
-    //     requestBody.messages[requestBody.messages.length - 1],
-    //     null,
-    //     2,
-    //   ),
-    // );
     queues.toolResults.publish(requestBody);
   }
 
   // Block and consume from THIS session's response queue
   const response = await queues.responses.consume();
-
+  // Block and wait for tool results from THIS session's toolResultsQueue (client → llmz)
+  if (response.choices[0].finish_reason === "stop") {
+    setTimeout(() => cleanupSession(sessionId), 5000);
+  }
   // Return response to caller
   res.json(response);
 };
 
 app.post("/chat/completions", handleChatCompletion);
 app.post("/v1/chat/completions", handleChatCompletion);
-
-// Tool calls endpoint - publishes response and waits for tool results
-const handleToolCalls = async (
-  req: Request<{}, {}, ChatCompletion>,
-  res: Response<ChatCompletionCreateParamsNonStreaming>,
-) => {
-  const completion = req.body;
-
-  // CRITICAL: Extract session_id
-  const sessionId = (completion as any).session_id;
-  if (!sessionId) {
-    console.error("[MIDDLEMAN] ERROR: Tool call missing session_id");
-    // console.error("Completion body:", JSON.stringify(completion, null, 2));
-    return res.status(400).json({
-      error: "Missing session_id - parallelism requires session isolation",
-    } as any);
-  }
-
-  // Get session-specific queues
-  const queues = getOrCreateSessionQueues(sessionId);
-
-  // Publish ChatCompletion to THIS session's responseQueue (llmz → client)
-  queues.responses.publish(completion);
-
-  // Block and wait for tool results from THIS session's toolResultsQueue (client → llmz)
-  if (completion.choices[0].finish_reason === "stop") {
-    // console.log(`[MIDDLEMAN] [${sessionId}] LLMZ→MCPMARK: Final response`);
-    // console.log(JSON.stringify(completion.choices[0].message, null, 2));
-
-    // Final message - cleanup session after response sent
-    setTimeout(() => cleanupSession(sessionId), 5000);
-    return res.json({} as any);
-  }
-
-  // console.log(`[MIDDLEMAN] [${sessionId}] LLMZ→MCPMARK: Tool call request`);
-  // console.log(JSON.stringify(completion.choices[0].message, null, 2));
-  const toolResults = await queues.toolResults.consume();
-
-  // Return tool results back to llmz
-  res.json(toolResults);
-};
-
-app.post("/tool-calls", handleToolCalls);
-app.post("/v1/tool-calls", handleToolCalls);
 
 // API endpoints for viewer
 app.get("/api/runs", (req: Request, res: Response) => {

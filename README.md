@@ -7,7 +7,7 @@ Benchmark [LLMz](https://github.com/botpress/llmz) (Botpress agent framework) us
 ```
 MCPMark (Python)
   ↓ POST /chat/completions
-middleman:3000 (acts as OpenAI API)
+middleman:3001 (acts as OpenAI API)
   ↓ spawns via stdin
 llmz (TypeScript)
   ↓ converts OpenAI → LLMz tools
@@ -49,9 +49,11 @@ BOTPRESS_BOT_ID=your_bot_id
 
 **mcpmark/.mcp_env** (points to middleman):
 ```bash
-OPENAI_BASE_URL=http://localhost:3000
+OPENAI_BASE_URL=http://localhost:3001
 OPENAI_API_KEY=dummy
 ```
+
+> **Note:** The PORT can be overridden via environment variable when running dev scripts (see below).
 
 ## Running
 
@@ -62,9 +64,50 @@ pnpm dev
 ```
 
 Runs all 3 services with colored output:
-- **cyan**: middleman (port 3000)
+- **cyan**: middleman (port 3001 by default)
 - **magenta**: llmz (stdin processor)
 - **yellow**: benchmark (filesystem task)
+
+#### Running on a custom port
+
+To run on a different port (e.g., for multiple parallel instances):
+
+```bash
+PORT=3002 pnpm dev
+```
+
+This will:
+- Start middleman on port 3002
+- Automatically configure mcpmark to use `http://localhost:3002`
+
+#### Custom experiment name
+
+To set a custom experiment name for the pipeline:
+
+```bash
+EXP_NAME=my-experiment pnpm dev
+```
+
+Or combine with custom port:
+
+```bash
+PORT=3002 EXP_NAME=my-experiment pnpm dev
+```
+
+#### Running multiple instances simultaneously
+
+```bash
+# Terminal 1
+PORT=3001 EXP_NAME=experiment-1 pnpm dev
+
+# Terminal 2
+PORT=3002 EXP_NAME=experiment-2 pnpm dev
+
+# Terminal 3
+PORT=3003 EXP_NAME=experiment-3 pnpm dev
+```
+
+Each instance runs independently on its own port with its own experiment name.
 
 ### Watch mode (auto-restart)
 
@@ -82,12 +125,18 @@ View benchmark results in a web UI:
 pnpm dev:viewer
 ```
 
-Opens at `http://localhost:3001`. Shows:
+Opens at `http://localhost:3011`. Shows:
 - Run selector (pick from saved results)
 - Iteration-by-iteration breakdown
 - Generated TypeScript code (syntax highlighted)
 - Tool calls with input/output + schemas
 - Error traces for failed iterations
+
+By default, the viewer connects to middleman on port 3001. To connect to a different middleman port:
+
+```bash
+MIDDLEMAN_URL=http://localhost:3002 pnpm dev:viewer
+```
 
 Results are saved to `llmz/results/run_*.json` after each benchmark run.
 
@@ -111,7 +160,7 @@ llmz-benchmark/
 
 ## How It Works
 
-1. **MCPMark** sends OpenAI-formatted requests to `http://localhost:3000`
+1. **MCPMark** sends OpenAI-formatted requests to `http://localhost:3001` (or custom port)
 2. **middleman** receives request, spawns `llmz` process via stdin
 3. **llmz** converts OpenAI tools → LLMz format, executes via Botpress
 4. Response flows back: llmz → middleman → MCPMark

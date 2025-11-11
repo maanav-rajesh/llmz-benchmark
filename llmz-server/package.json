@@ -9,7 +9,11 @@
     "dev": "tsx src/server.ts"
   },
   "dependencies": {
+    "@botpress/client": "^1.27.0",
+    "@bpinternal/zui": "1.2.1",
+    "dotenv": "^17.2.3",
     "express": "^4.18.2",
+    "llmz": "^0.0.27",
     "openai": "^6.7.0"
   },
   "devDependencies": {

@@ -1,55 +1,21 @@
-import * as readline from "readline";
-import { execute, Exit, ThinkExit } from "llmz";
+import { execute } from "llmz";
 import { Client } from "@botpress/client";
 import dotenv from "dotenv";
 import type {
   ChatCompletionCreateParamsNonStreaming,
   ChatCompletion,
 } from "openai/resources/chat/completions";
-import { convertOpenAIToolToLLMzTool } from "./utils/convert-tool";
+import { convertOpenAIToolToLLMzTool } from "./convert-tool";
 import type { ExecutionResult } from "llmz";
 import type { Tool as LLMzTool } from "llmz";
 import * as fs from "fs";
+import { getOrCreateSessionQueues } from "./server";
 
 dotenv.config();
 
-async function main() {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    terminal: false,
-  });
-
-  let inputText = "";
-
-  for await (const line of rl) {
-    inputText += line + "\n";
-  }
-
-  // Parse the input text as JSON
-  let requestData: ChatCompletionCreateParamsNonStreaming;
-  let sessionId: string;
-  try {
-    const parsedInput = JSON.parse(inputText.trim());
-    requestData = parsedInput as ChatCompletionCreateParamsNonStreaming;
-
-    // CRITICAL: Extract and validate session_id
-    sessionId = (parsedInput as any).session_id || process.env.SESSION_ID || "";
-    if (!sessionId) {
-      console.error(
-        "FATAL: No session_id provided in request or SESSION_ID env"
-      );
-      process.exit(1);
-    }
-
-    console.log(`[LLMZ] Session ID: ${sessionId}`);
-  } catch (error) {
-    console.error("Failed to parse input as JSON:", error);
-    process.exit(1);
-  }
-
+export async function runLLMz(request: ChatCompletionCreateParamsNonStreaming, sessionId: string) {
   let instructions = "";
-  for (const message of requestData.messages) {
+  for (const message of request.messages) {
     instructions += `${message.content} \n\n`;
   }
   instructions +=
@@ -69,7 +35,7 @@ async function main() {
   });
 
   const tools: LLMzTool[] = [];
-  for (const tool of requestData.tools ?? []) {
+  for (const tool of request.tools ?? []) {
     tools.push(await convertOpenAIToolToLLMzTool(client, tool, sessionId));
   }
 
@@ -94,7 +60,7 @@ async function main() {
         throw new Error(result.result.error);
       }
     },
-    model: "openai:o4-mini-2025-04-16",
+    model: "openai:gpt-5-2025-08-07"
   });
 
   const status = result.status;
@@ -124,7 +90,7 @@ async function main() {
     id: `chatcmpl-${Date.now()}`,
     object: "chat.completion",
     created: Math.floor(Date.now() / 1000),
-    model: requestData.model,
+    model: request.model,
     choices: [
       {
         index: 0,
@@ -149,21 +115,6 @@ async function main() {
           .reduce((a, b) => a + b, 0) ?? 0,
     },
   };
-
-  // Send ChatCompletion to middleman
-  await fetch("http://localhost:3001/tool-calls", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      ...response,
-      session_id: sessionId,
-    }),
-  });
+  const queues = getOrCreateSessionQueues(sessionId);
+  queues.responses.publish(response);
 }
-
-main().catch((error) => {
-  console.error("Error:", error);
-  process.exit(1);
-});

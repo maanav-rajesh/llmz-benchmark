@@ -7,7 +7,7 @@ export default defineConfig({
     port: 3011,
     proxy: {
       "/api": {
-        target: "http://localhost:3001",
+        target: process.env.MIDDLEMAN_URL || "http://localhost:3001",
         changeOrigin: true,
       },
     },
