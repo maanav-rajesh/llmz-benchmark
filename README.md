@@ -1,45 +1,37 @@
 # LLMz Benchmark
 
-Benchmark [LLMz](https://github.com/botpress/llmz) (Botpress agent framework) using [MCPMark](https://github.com/eval-sys/mcpmark).
+Evaluate [LLMz](https://github.com/botpress/llmz) agents using [MCPMark](https://github.com/eval-sys/mcpmark) benchmarks through an OpenAI-compatible proxy server.
 
-## Architecture
+## How It Works
 
 ```
-MCPMark (Python)
-  ↓ POST /chat/completions
-middleman:3001 (acts as OpenAI API)
-  ↓ spawns via stdin
-llmz (TypeScript)
-  ↓ converts OpenAI → LLMz tools
-Botpress API
-  ↓ executes agent code
-Results → MCPMark
+MCPMark → HTTP → llmz-server (OpenAI API) → LLMz npm package → Botpress → Results
+```
+
+The `llmz-server` acts as an OpenAI-compatible endpoint that translates requests to LLMz format and executes them via the Botpress agent framework using the `llmz` npm package.
+
+## Quick Start
+
+```bash
+# Install dependencies (auto-configures mcpmark submodule + venv)
+pnpm install
+
+# Configure Botpress credentials in llmz-server/.env
+cp llmz-server/.env.example llmz-server/.env
+
+# Run benchmark
+pnpm dev
 ```
 
 ## Prerequisites
 
-- **Node.js** 18+ with pnpm
-- **Python** 3.11+
-- **Botpress account** with API credentials
+- Node.js 18+ with pnpm
+- Python 3.11+
+- Botpress account with API credentials
 
-## Setup
+## Configuration
 
-### 1. Clone and install
-
-```bash
-git clone <repo-url>
-cd llmz-benchmark
-pnpm install
-```
-
-This automatically:
-- Initializes the `mcpmark` git submodule
-- Installs Node packages (middleman, llmz)
-- Creates Python virtualenv and installs mcpmark dependencies
-
-### 2. Configure environment variables
-
-**llmz/.env** (Botpress credentials):
+**llmz-server/.env**:
 ```bash
 OPENAI_API_KEY=your_openai_key
 BOTPRESS_TOKEN=your_botpress_token
@@ -47,127 +39,98 @@ BOTPRESS_WORKSPACE_ID=your_workspace_id
 BOTPRESS_BOT_ID=your_bot_id
 ```
 
-**mcpmark/.mcp_env** (points to middleman):
+**mcpmark/.mcp_env** (auto-configured):
 ```bash
 OPENAI_BASE_URL=http://localhost:3001
 OPENAI_API_KEY=dummy
 ```
 
-> **Note:** The PORT can be overridden via environment variable when running dev scripts (see below).
+## Usage
 
-## Running
-
-### Development mode
+### Basic Commands
 
 ```bash
+# Run single benchmark (music_report task)
 pnpm dev
+
+# Run all benchmarks
+pnpm dev:benchmark
+
+# Auto-restart on code changes
+pnpm dev:watch
+
+# View results in browser UI
+pnpm dev:viewer
 ```
 
-Runs all 3 services with colored output:
-- **cyan**: middleman (port 3001 by default)
-- **magenta**: llmz (stdin processor)
-- **yellow**: benchmark (filesystem task)
+### Advanced Options
 
-#### Running on a custom port
-
-To run on a different port (e.g., for multiple parallel instances):
-
+**Custom port** (for parallel instances):
 ```bash
 PORT=3002 pnpm dev
 ```
 
-This will:
-- Start middleman on port 3002
-- Automatically configure mcpmark to use `http://localhost:3002`
-
-#### Custom experiment name
-
-To set a custom experiment name for the pipeline:
-
+**Custom model**:
 ```bash
-EXP_NAME=my-experiment pnpm dev
+MODEL=gpt-4-turbo pnpm dev:benchmark
 ```
 
-Or combine with custom port:
-
-```bash
-PORT=3002 EXP_NAME=my-experiment pnpm dev
-```
-
-#### Running multiple instances simultaneously
-
+**Parallel execution**:
 ```bash
 # Terminal 1
-PORT=3001 EXP_NAME=experiment-1 pnpm dev
+PORT=3001 MODEL=gpt-4 pnpm dev:benchmark
 
 # Terminal 2
-PORT=3002 EXP_NAME=experiment-2 pnpm dev
-
-# Terminal 3
-PORT=3003 EXP_NAME=experiment-3 pnpm dev
+PORT=3002 MODEL=claude-3-opus pnpm dev:benchmark
 ```
 
-Each instance runs independently on its own port with its own experiment name.
+### Results Viewer
 
-### Watch mode (auto-restart)
-
-```bash
-pnpm dev:watch
-```
-
-Auto-restarts when `.ts` files change in `llmz/` or `middleman/`.
-
-### Viewer (React UI)
-
-View benchmark results in a web UI:
-
-```bash
-pnpm dev:viewer
-```
-
-Opens at `http://localhost:3011`. Shows:
-- Run selector (pick from saved results)
-- Iteration-by-iteration breakdown
+The viewer (`http://localhost:3011`) displays:
+- Iteration-by-iteration traces
 - Generated TypeScript code (syntax highlighted)
-- Tool calls with input/output + schemas
-- Error traces for failed iterations
+- Tool call inputs/outputs with schemas
+- Error traces
 
-By default, the viewer connects to middleman on port 3001. To connect to a different middleman port:
-
-```bash
-MIDDLEMAN_URL=http://localhost:3002 pnpm dev:viewer
-```
-
-Results are saved to `llmz/results/run_*.json` after each benchmark run.
+Results are saved to `llmz-server/results/run_*.json`.
 
 ## Project Structure
 
 ```
 llmz-benchmark/
-├─ llmz/              # LLMz CLI (reads OpenAI requests from stdin)
+├─ llmz-server/       # Express server (OpenAI-compatible API)
 │  ├─ src/
-│  ├─ results/        # Saved benchmark results (*.json)
-│  └─ .env.example
-├─ middleman/         # Proxy server (OpenAI API → llmz)
-│  └─ src/
-├─ viewer/            # React UI for viewing results
-│  └─ src/
-├─ mcpmark/           # Python benchmark suite (git submodule)
-│  ├─ .venv/          # Auto-created Python virtualenv
-│  └─ .mcp_env
-└─ package.json       # Root workspace config
+│  │  ├─ server.ts           # HTTP server + request handling
+│  │  ├─ run-llmz.ts         # LLMz execution via npm package
+│  │  └─ convert-tool.ts     # OpenAI → LLMz tool conversion
+│  └─ results/        # Benchmark results (*.json)
+├─ viewer/            # React UI for visualizing results
+├─ mcpmark/           # MCPMark benchmark suite (submodule)
+└─ package.json       # Workspace config
 ```
 
-## How It Works
+## Example
 
-1. **MCPMark** sends OpenAI-formatted requests to `http://localhost:3001` (or custom port)
-2. **middleman** receives request, spawns `llmz` process via stdin
-3. **llmz** converts OpenAI tools → LLMz format, executes via Botpress
-4. Response flows back: llmz → middleman → MCPMark
-5. **MCPMark** verifies task completion
+Running a simple filesystem task:
 
-## Results
+```bash
+$ pnpm dev
 
-Benchmark results are saved to two locations:
-- **llmz/results/run_*.json** - Full iteration traces with code, tool calls, and schemas (used by viewer)
-- **mcpmark/results/\<timestamp\>/gpt-5__filesystem/run-1/** - MCPMark evaluation results
+# MCPMark sends task: "Create a music report"
+# → llmz-server receives OpenAI chat request
+# → Converts tools to LLMz format
+# → Calls llmz.execute() with Botpress client
+# → Agent generates code and calls tools iteratively
+# → Returns results to MCPMark
+# → Task verified and scored
+
+✓ Task completed successfully
+```
+
+View detailed traces at `http://localhost:3011` after running the viewer.
+
+## License
+
+See individual component licenses:
+- LLMz: [License](https://github.com/botpress/llmz)
+- MCPMark: [License](https://github.com/eval-sys/mcpmark)
