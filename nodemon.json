@@ -1,5 +1,5 @@
 {
-  "watch": ["llmz/**/*.ts", "middleman/**/*.ts"],
+  "watch": ["llmz-server/**/*.ts"],
   "ignore": ["mcpmark/**/*", "node_modules/**/*", "dist/**/*", "results/**/*"],
   "ext": "ts",
   "exec": "pnpm dev"

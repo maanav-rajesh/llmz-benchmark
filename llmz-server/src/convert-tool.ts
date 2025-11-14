@@ -3,16 +3,15 @@ import type {
   ChatCompletionTool,
   ChatCompletionMessageToolCall,
   ChatCompletion,
-  ChatCompletionCreateParamsNonStreaming,
   ChatCompletionMessageParam,
   ChatCompletionContentPartText,
 } from "openai/resources/chat/completions";
-import { convertJsonSchemaToZod as jsonSchemaToZod } from "zod-from-json-schema";
+import { Responses } from "openai/resources/responses";
 import { transforms, z } from "@bpinternal/zui";
 import { randomUUID } from "node:crypto";
-import { Client } from "@botpress/client";
-import { mcpToolOutputSchemas } from "../generated-schemas/mcp-tool-output-schemas";
 import { OpenAI } from "openai";
+import { getOrCreateSessionQueues } from "./server";
+import { outputSchemas } from "./generated-schemas/filesystem-schemas";
 export interface ResponseOptions {
   model: string;
   content?: string;
@@ -21,12 +20,16 @@ export interface ResponseOptions {
   promptTokens?: number;
   completionTokens?: number;
 }
-import * as zod from "zod";
+
+export const errorSchema = z.object({
+  error: z.string(),
+});
+
 /**
  * Creates an OpenAI-compatible chat completion response.
  */
 export function createChatCompletionResponse(
-  options: ResponseOptions,
+  options: ResponseOptions
 ): ChatCompletion {
   const {
     model,
@@ -66,61 +69,36 @@ export function createChatCompletionResponse(
 }
 
 /**
- * Converts a JSON Schema to a Zod schema.
- * @param jsonSchema - The JSON Schema object to convert
- * @param toolName - Optional tool name for better error messages
- * @returns A Zod schema
- */
-export function convertJsonSchemaToZod(
-  jsonSchema: Record<string, any> | undefined,
-  toolName?: string,
-): any {
-  // Default schema if no parameters provided
-  if (!jsonSchema || typeof jsonSchema !== "object") {
-    return z.object({});
-  }
-
-  try {
-    // Use zod-from-json-schema for runtime conversion
-    const result = jsonSchemaToZod(jsonSchema);
-    return result;
-  } catch (error) {
-    const context = toolName ? ` for tool ${toolName}` : "";
-    console.warn(`Failed to convert schema${context}:`, error);
-    // Fall back to accepting any object
-    return z.object({}).passthrough();
-  }
-}
-
-/**
  * Converts OpenAI tool definitions to LLMz Tool instances.
  * These tools are placeholders - they won't execute, but will be intercepted
  * and returned to the client for execution.
  */
 export async function convertOpenAIToolToLLMzTool(
-  client: Client,
   tool: ChatCompletionTool,
-  sessionId: string,
+  sessionId: string
 ): Promise<LLMzTool> {
   if (tool.type !== "function") {
     throw new Error("Only function tools are supported");
   }
   const { name, description, parameters } = tool.function;
+  const queues = getOrCreateSessionQueues(sessionId);
 
   // Convert input schema
   const inputSchema = transforms.fromJSONSchema(
-    parameters as Record<string, any> | undefined,
-    name,
+    parameters as Record<string, any> | undefined
   );
   // Save the schema to a file
-  const outputSchema = transforms.fromJSONSchema(mcpToolOutputSchemas[name]);
+  const outputSchema = transforms.toJSONSchema(
+    outputSchemas[name as keyof typeof outputSchemas]
+  );
+  console.log(`🚀 ~ convertOpenAIToolToLLMzTool ~ ${name}:`, outputSchema);
 
   try {
-    const resultingSchema = transforms.toJSONSchema(outputSchema);
-    console.log(
-      "🚀 ~ convertOpenAIToolToLLMzTool ~ resultingSchema:",
-      resultingSchema,
-    );
+    // const resultingSchema = transforms.toJSONSchema(outputSchema);
+    // console.log(
+    //   "🚀 ~ convertOpenAIToolToLLMzTool ~ resultingSchema:",
+    //   resultingSchema
+    // );
   } catch (error) {
     console.error(`[Error converting schema] name: ${name}`, error);
     throw new Error(`Error converting schema: ${error}`);
@@ -128,13 +106,16 @@ export async function convertOpenAIToolToLLMzTool(
 
   // const outputJSONSchema = JSON.parse(outputSchemaString);
   // const outputSchemaZod = convertJsonSchemaToZod(outputJSONSchema, name);
-
   return new LLMzTool({
     name,
-    description: `Tool: ${name}`,
+    description:
+      description +
+      // `Only works on absolute paths within allowed directories.` +
+      ` Returns a promise.`,
     input: inputSchema,
-    output: outputSchema,
+    output: outputSchemas[name as keyof typeof outputSchemas],
     handler: async (args: z.infer<typeof inputSchema>) => {
+      console.log("Executing tool", name);
       // Create the tool call object
       const toolCallId = `call_${randomUUID().replace(/-/g, "").slice(0, 24)}`;
       const toolCall: ChatCompletionMessageToolCall = {
@@ -154,27 +135,17 @@ export async function convertOpenAIToolToLLMzTool(
         completionTokens: 0,
       });
 
-      // Send tool call to middleman and wait for tool results
-      const result = await fetch("http://localhost:3000/tool-calls", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...response,
-          session_id: sessionId,
-        }),
-      });
+      console.log("Sending tool call to middleman");
 
-      const resultData: ChatCompletionCreateParamsNonStreaming =
-        await result.json();
+      queues.responses.publish(response);
+      const toolResult = await queues.toolResults.consume();
 
       // Find the tool result message that matches our toolCallId
-      const toolResultMessage = resultData.messages.find(
+      const toolResultMessage = toolResult.messages.find(
         (msg: ChatCompletionMessageParam) =>
           msg.role === "tool" &&
           "tool_call_id" in msg &&
-          msg.tool_call_id === toolCallId,
+          msg.tool_call_id === toolCallId
       );
 
       if (!toolResultMessage || !("content" in toolResultMessage)) {
@@ -191,7 +162,7 @@ export async function convertOpenAIToolToLLMzTool(
         apiKey: process.env.OPENAI_API_KEY,
       });
 
-      let parsedResponse: z.infer<typeof outputSchema> | undefined;
+      let parsedResponse: Responses.Response;
       try {
         parsedResponse = await openai.responses.create({
           model: "gpt-4o-2024-08-06",
@@ -210,25 +181,19 @@ export async function convertOpenAIToolToLLMzTool(
             format: {
               type: "json_schema",
               name: `${name}_output`,
-              schema: mcpToolOutputSchemas[name],
+              schema: outputSchema,
             },
           },
         });
 
-        console.log("[CONVERT-TOOL] Tool:", name);
-        console.log("[CONVERT-TOOL] Raw MCP output:", toolCallOutput);
+        // console.log("[CONVERT-TOOL] Tool:", name);
+        // console.log("[CONVERT-TOOL] Raw MCP output:", toolCallOutput);
       } catch (error) {
         console.error("[Error parsing tool output]", error);
         throw new Error(`Error parsing tool output: ${error}`);
       }
       const jsonResponse = JSON.parse(parsedResponse.output_text);
-      console.log("[CONVERT-TOOL] Parsed response:", jsonResponse);
-
-      if (jsonResponse.hasError) {
-        throw new Error(
-          `Tool ${name} returned an error: ${parsedResponse.output_text}`,
-        );
-      }
+      // console.log("[CONVERT-TOOL] Parsed response:", jsonResponse);
 
       return jsonResponse;
     },
