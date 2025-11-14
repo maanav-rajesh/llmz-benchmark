@@ -12,6 +12,16 @@ import { runLLMz } from "./run-llmz";
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Parse command line arguments for model name
+const args = process.argv.slice(2);
+const modelArgIndex = args.findIndex(
+  (arg) => arg === "--model" || arg === "-m",
+);
+const MODEL_NAME =
+  modelArgIndex !== -1 && args[modelArgIndex + 1]
+    ? args[modelArgIndex + 1]
+    : "claude-3-5-sonnet-20241022"; // default model
+
 app.use(express.json({ limit: "1gb" }));
 
 // Session-based queues for bidirectional communication
@@ -66,19 +76,6 @@ function cleanupSession(sessionId: string): void {
   }
 }
 
-// Cleanup stale sessions (older than 1 hour)
-setInterval(() => {
-  const now = Date.now();
-  const staleThreshold = 60 * 60 * 1000; // 1 hour
-
-  for (const [sessionId, queues] of sessionQueues.entries()) {
-    if (now - queues.spawnedAt > staleThreshold) {
-      console.log(`[MIDDLEMAN] Cleaning up stale session: ${sessionId}`);
-      sessionQueues.delete(sessionId);
-    }
-  }
-}, 5 * 60 * 1000); // Check every 5 minutes
-
 // Helper to check if message contains tool calls
 function hasToolCalls(message: ChatCompletionMessageParam): boolean {
   return (
@@ -91,55 +88,9 @@ function containsToolMessages(messages: ChatCompletionMessageParam[]): boolean {
   return messages.some((msg) => hasToolCalls(msg));
 }
 
-// Spawn llmz process and pass request via stdin
-async function spawnLLMz(
-  request: ChatCompletionCreateParamsNonStreaming,
-  sessionId: string
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const llmzProcess = spawn("pnpm", ["dev"], {
-      cwd: path.resolve(__dirname, "../../llmz"),
-      env: {
-        ...process.env,
-        SESSION_ID: sessionId,
-      },
-    });
-
-    // Redirect child process output to parent
-    llmzProcess.stdout.pipe(process.stdout);
-    llmzProcess.stderr.pipe(process.stderr);
-
-    // Include session_id in the request
-    const requestWithSession = {
-      ...request,
-      session_id: sessionId,
-    };
-    const requestString = JSON.stringify(requestWithSession);
-
-    llmzProcess.stdin.write(requestString);
-    llmzProcess.stdin.end();
-
-    llmzProcess.on("close", (code) => {
-      // Cleanup session when process completes
-      setTimeout(() => cleanupSession(sessionId), 5000); // Wait 5s for final messages
-
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(`llmz process exited with code ${code}`));
-      }
-    });
-
-    llmzProcess.on("error", (error) => {
-      cleanupSession(sessionId);
-      reject(error);
-    });
-  });
-}
-
 const handleChatCompletion = async (
   req: Request<{}, {}, ChatCompletionCreateParamsNonStreaming>,
-  res: Response<ChatCompletion>
+  res: Response<ChatCompletion>,
 ) => {
   const requestBody = req.body;
 
@@ -161,7 +112,7 @@ const handleChatCompletion = async (
 
   if (!hasToolMessages) {
     try {
-      runLLMz(requestBody, sessionId);
+      runLLMz(requestBody, sessionId, MODEL_NAME);
     } catch (error) {
       console.error(`[${sessionId}] Error spawning llmz:`, error);
     }
@@ -236,5 +187,6 @@ app.get("/api/sessions", (req: Request, res: Response) => {
 
 app.listen(PORT, () => {
   console.log(`Middleman server is running on http://localhost:${PORT}`);
+  console.log(`Using model: ${MODEL_NAME}`);
   console.log(`Session debug endpoint: http://localhost:${PORT}/api/sessions`);
 });

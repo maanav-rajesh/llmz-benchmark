@@ -5,8 +5,8 @@
   "description": "LLMZ Benchmark Workspace",
   "scripts": {
     "postinstall": "cd mcpmark && python3.11 -m venv .venv && .venv/bin/pip install -e .",
-    "dev": "PORT=${PORT:-3001} concurrently \"pnpm dev:llmz-server\" \"cd mcpmark && OPENAI_BASE_URL=http://localhost:${PORT:-3001} .venv/bin/python -m pipeline --mcp filesystem --models gpt-5 --tasks music_report --k 1 ${EXP_NAME:+--exp-name $EXP_NAME}\" --names \"llmz-server,benchmark\" --prefix-colors \"cyan,yellow\"",
-    "dev:benchmark": "PORT=${PORT:-3001} concurrently \"pnpm dev:llmz-server\" \"cd mcpmark && OPENAI_BASE_URL=http://localhost:${PORT:-3001} .venv/bin/python -m pipeline --mcp filesystem --models gpt-5-nano --tasks all --k 1 --max-workers 1 ${EXP_NAME:+--exp-name $EXP_NAME}\" --names \"llmz-server,benchmark\" --prefix-colors \"cyan,yellow\"",
+    "dev": "PORT=${PORT:-3001} concurrently \"pnpm dev:llmz-server\" \"cd mcpmark && OPENAI_BASE_URL=http://localhost:${PORT:-3001} .venv/bin/python -m pipeline --mcp filesystem --models gpt-5 --tasks music_report --k 1 --max-workers 1\" --names \"llmz-server,benchmark\" --prefix-colors \"cyan,yellow\"",
+    "dev:benchmark": "PORT=${PORT:-3001} concurrently \"pnpm dev:llmz-server -m ${MODEL}\" \"cd mcpmark && OPENAI_BASE_URL=http://localhost:${PORT:-3001} .venv/bin/python -m pipeline --mcp filesystem --models gpt-5 --tasks all --k 1 --max-workers 1 ${MODEL:+--exp-name $MODEL-$(openssl rand -hex 4)}\" --names \"llmz-server,benchmark\" --prefix-colors \"cyan,yellow\"",
     "dev:watch": "nodemon",
     "start:llmz-server": "pnpm --filter llmz-server start",
     "dev:llmz-server": "pnpm --filter llmz-server dev",

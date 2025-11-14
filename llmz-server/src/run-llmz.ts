@@ -1,4 +1,4 @@
-import { execute } from "llmz";
+import { execute, ObjectInstance } from "llmz";
 import { Client } from "@botpress/client";
 import dotenv from "dotenv";
 import type {
@@ -13,8 +13,12 @@ import { getOrCreateSessionQueues } from "./server";
 
 dotenv.config();
 
-export async function runLLMz(request: ChatCompletionCreateParamsNonStreaming, sessionId: string) {
-  let instructions = "";
+export async function runLLMz(
+  request: ChatCompletionCreateParamsNonStreaming,
+  sessionId: string,
+  model: string
+) {
+  let instructions = Date.now().toString().toLocaleString() + `\n\n`;
   for (const message of request.messages) {
     instructions += `${message.content} \n\n`;
   }
@@ -28,22 +32,32 @@ export async function runLLMz(request: ChatCompletionCreateParamsNonStreaming, s
     `\n\n` +
     `MOST IMPORTANTLY: DO NOT try and complete the entire task in one iteration. Create logical checkpoints and only generate code for a checkpoint after you have completed the previous ones.`;
 
+
+  const botIds = process.env.BOTPRESS_BOT_IDS?.split(",") ?? [];
+  const currentBotId = botIds[parseInt(process.env.IDX ?? "0")];
   const client = new Client({
     token: process.env.BOTPRESS_TOKEN,
     workspaceId: process.env.BOTPRESS_WORKSPACE_ID,
-    botId: process.env.BOTPRESS_BOT_ID,
+    botId: currentBotId,
   });
 
   const tools: LLMzTool[] = [];
   for (const tool of request.tools ?? []) {
-    tools.push(await convertOpenAIToolToLLMzTool(client, tool, sessionId));
+    tools.push(await convertOpenAIToolToLLMzTool(tool, sessionId));
   }
+
+  const FS = new ObjectInstance({
+    name: "FS",
+    description:
+      "A comprehensive file system object with tools for reading, writing, and managing files and directories. ALL operations are asynchronous and return promises.",
+    tools: tools,
+  });
 
   let result: ExecutionResult | undefined;
   result = await execute({
     client,
     instructions,
-    tools,
+    objects: [FS],
     options: {
       loop: 100,
       timeout: 100000000,
@@ -53,6 +67,14 @@ export async function runLLMz(request: ChatCompletionCreateParamsNonStreaming, s
       console.log(iteration.code);
       console.log("===========ITERATION CODE END=============");
     },
+    onAfterTool: async (tool) => {
+      console.log(
+        `=========== TOOL ${tool.tool.name} RESULT START=============`
+      );
+      console.log("TOOL INPUT:", tool.input);
+      console.log("TOOL OUTPUT:", tool.output);
+      console.log(`=========== TOOL ${tool.tool.name} RESULT END=============`);
+    },
     onExit: async (result) => {
       console.log("RESULT:", result);
       if (result.result.success === false && result.result.error) {
@@ -60,7 +82,7 @@ export async function runLLMz(request: ChatCompletionCreateParamsNonStreaming, s
         throw new Error(result.result.error);
       }
     },
-    model: "openai:gpt-5-2025-08-07"
+    model,
   });
 
   const status = result.status;
