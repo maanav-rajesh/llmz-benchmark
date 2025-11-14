@@ -35,16 +35,8 @@ for log_file in "$LOGS_DIR"/*.log; do
     # Count passes (🎉 emoji)
     passes=$(grep -o "🎉" "$log_file" | wc -l | tr -d ' ')
 
-    # Count failures (❌ emoji)
-    failures=$(grep -o "❌" "$log_file" | wc -l | tr -d ' ')
-
     # Calculate total tasks
-    total=$((passes + failures))
-
-    # Skip if no tasks found
-    if [ "$total" -eq 0 ]; then
-        continue
-    fi
+    total=30
 
     # Calculate pass percentage
     pass_pct=$(echo "scale=1; $passes * 100 / $total" | bc)
