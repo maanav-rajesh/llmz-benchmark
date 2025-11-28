@@ -9,41 +9,35 @@ import { convertOpenAIToolToLLMzTool } from "./convert-tool";
 import type { ExecutionResult } from "llmz";
 import type { Tool as LLMzTool } from "llmz";
 import * as fs from "fs";
-import { getOrCreateSessionQueues } from "./server";
+import { sessionQueues } from "./server";
+import { Cognitive } from "@botpress/cognitive";
 
 dotenv.config();
 
 export async function runLLMz(
   request: ChatCompletionCreateParamsNonStreaming,
-  sessionId: string,
   model: string
 ) {
   let instructions = Date.now().toString().toLocaleString() + `\n\n`;
   for (const message of request.messages) {
     instructions += `${message.content} \n\n`;
   }
-  instructions +=
-    `\n\n` +
-    `Always UNDERSTAND ALL THE TOOLS at your disposal. THINK about what valid input arguments each tool might take. If the code you generated is not working, consider WHY, and consider which tool you might use to make progress.`;
-  instructions +=
-    `\n\n` +
-    `IMPORTANT: THINK after every tool call. UNDERSTAND the results and/or errors before continuing. THINK (return with a "think" exit) even in case of errors. This is imperative.`;
-  instructions +=
-    `\n\n` +
-    `MOST IMPORTANTLY: DO NOT try and complete the entire task in one iteration. Create logical checkpoints and only generate code for a checkpoint after you have completed the previous ones.`;
 
+  // const botIds = process.env.BOTPRESS_BOT_IDS?.split(",") ?? [];
+  // const currentBotId = botIds[parseInt(process.env.IDX ?? "0")];
 
-  const botIds = process.env.BOTPRESS_BOT_IDS?.split(",") ?? [];
-  const currentBotId = botIds[parseInt(process.env.IDX ?? "0")];
-  const client = new Client({
-    token: process.env.BOTPRESS_TOKEN,
-    workspaceId: process.env.BOTPRESS_WORKSPACE_ID,
-    botId: currentBotId,
+  const client = new Cognitive({
+    client: new Client({
+      token: process.env.BOTPRESS_TOKEN,
+      workspaceId: process.env.BOTPRESS_WORKSPACE_ID,
+      botId: process.env.BOTPRESS_BOT_ID,
+    }),
+    __experimental_beta: true,
   });
 
   const tools: LLMzTool[] = [];
   for (const tool of request.tools ?? []) {
-    tools.push(await convertOpenAIToolToLLMzTool(tool, sessionId));
+    tools.push(await convertOpenAIToolToLLMzTool(tool));
   }
 
   const FS = new ObjectInstance({
@@ -59,7 +53,7 @@ export async function runLLMz(
     instructions,
     objects: [FS],
     options: {
-      loop: 100,
+      loop: 25,
       timeout: 100000000,
     },
     onIterationEnd: async (iteration) => {
@@ -137,6 +131,5 @@ export async function runLLMz(
           .reduce((a, b) => a + b, 0) ?? 0,
     },
   };
-  const queues = getOrCreateSessionQueues(sessionId);
-  queues.responses.publish(response);
+  sessionQueues.responses.publish(response);
 }

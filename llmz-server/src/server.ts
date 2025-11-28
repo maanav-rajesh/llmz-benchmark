@@ -1,5 +1,4 @@
 import express, { Request, Response } from "express";
-import { spawn } from "child_process";
 import path from "path";
 import fs from "fs";
 import type {
@@ -15,14 +14,14 @@ const PORT = process.env.PORT || 3001;
 // Parse command line arguments for model name
 const args = process.argv.slice(2);
 const modelArgIndex = args.findIndex(
-  (arg) => arg === "--model" || arg === "-m",
+  (arg) => arg === "--model" || arg === "-m"
 );
 const MODEL_NAME =
   modelArgIndex !== -1 && args[modelArgIndex + 1]
     ? args[modelArgIndex + 1]
     : "claude-3-5-sonnet-20241022"; // default model
 
-app.use(express.json({ limit: "1gb" }));
+app.use(express.json({ limit: "50mb" }));
 
 // Session-based queues for bidirectional communication
 class AsyncQueue<T> {
@@ -51,33 +50,16 @@ class AsyncQueue<T> {
 interface SessionQueues {
   responses: AsyncQueue<ChatCompletion>;
   toolResults: AsyncQueue<ChatCompletionCreateParamsNonStreaming>;
-  spawnedAt: number;
 }
 
 // Session-based queue management
-const sessionQueues = new Map<string, SessionQueues>();
-
-export function getOrCreateSessionQueues(sessionId: string): SessionQueues {
-  if (!sessionQueues.has(sessionId)) {
-    console.log(`[MIDDLEMAN] Creating new session: ${sessionId}`);
-    sessionQueues.set(sessionId, {
-      responses: new AsyncQueue<ChatCompletion>(),
-      toolResults: new AsyncQueue<ChatCompletionCreateParamsNonStreaming>(),
-      spawnedAt: Date.now(),
-    });
-  }
-  return sessionQueues.get(sessionId)!;
-}
-
-function cleanupSession(sessionId: string): void {
-  if (sessionQueues.has(sessionId)) {
-    console.log(`[MIDDLEMAN] Cleaning up session: ${sessionId}`);
-    sessionQueues.delete(sessionId);
-  }
-}
+export const sessionQueues: SessionQueues = {
+  responses: new AsyncQueue<ChatCompletion>(),
+  toolResults: new AsyncQueue<ChatCompletionCreateParamsNonStreaming>(),
+};
 
 // Helper to check if message contains tool calls
-function hasToolCalls(message: ChatCompletionMessageParam): boolean {
+function isToolCall(message: ChatCompletionMessageParam): boolean {
   return (
     "tool_calls" in message || ("role" in message && message.role === "tool")
   );
@@ -85,47 +67,31 @@ function hasToolCalls(message: ChatCompletionMessageParam): boolean {
 
 // Helper to check if any messages contain tool calls or tool results
 function containsToolMessages(messages: ChatCompletionMessageParam[]): boolean {
-  return messages.some((msg) => hasToolCalls(msg));
+  return messages.some((msg) => isToolCall(msg));
 }
 
 const handleChatCompletion = async (
   req: Request<{}, {}, ChatCompletionCreateParamsNonStreaming>,
-  res: Response<ChatCompletion>,
+  res: Response<ChatCompletion>
 ) => {
   const requestBody = req.body;
-
-  // CRITICAL: Extract session_id
-  const sessionId = (requestBody as any).session_id;
-  if (!sessionId) {
-    console.error("[MIDDLEMAN] ERROR: Request missing session_id");
-    console.error("Request body:", JSON.stringify(requestBody, null, 2));
-    return res.status(400).json({
-      error: "Missing session_id - parallelism requires session isolation",
-    } as any);
-  }
-
-  // Get session-specific queues
-  const queues = getOrCreateSessionQueues(sessionId);
 
   // Check if any messages contain tool calls or tool results
   const hasToolMessages = containsToolMessages(requestBody.messages);
 
   if (!hasToolMessages) {
     try {
-      runLLMz(requestBody, sessionId, MODEL_NAME);
+      runLLMz(requestBody, MODEL_NAME);
     } catch (error) {
-      console.error(`[${sessionId}] Error spawning llmz:`, error);
+      console.error(`Error spawning llmz:`, error);
     }
   } else {
-    queues.toolResults.publish(requestBody);
+    sessionQueues.toolResults.publish(requestBody);
   }
 
   // Block and consume from THIS session's response queue
-  const response = await queues.responses.consume();
-  // Block and wait for tool results from THIS session's toolResultsQueue (client → llmz)
-  if (response.choices[0].finish_reason === "stop") {
-    setTimeout(() => cleanupSession(sessionId), 5000);
-  }
+  const response = await sessionQueues.responses.consume();
+
   // Return response to caller
   res.json(response);
 };
@@ -173,16 +139,6 @@ app.get("/api/runs/:runId", (req: Request, res: Response) => {
     console.error("Error reading run:", error);
     res.status(500).json({ error: "Failed to read run" });
   }
-});
-
-// Debug endpoint to inspect active sessions
-app.get("/api/sessions", (req: Request, res: Response) => {
-  const sessions = Array.from(sessionQueues.entries()).map(([id, queues]) => ({
-    sessionId: id,
-    age: Date.now() - queues.spawnedAt,
-    ageMinutes: ((Date.now() - queues.spawnedAt) / 60000).toFixed(2),
-  }));
-  res.json({ sessions, total: sessions.length });
 });
 
 app.listen(PORT, () => {

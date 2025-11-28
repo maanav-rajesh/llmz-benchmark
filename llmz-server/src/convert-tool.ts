@@ -10,7 +10,7 @@ import { Responses } from "openai/resources/responses";
 import { transforms, z } from "@bpinternal/zui";
 import { randomUUID } from "node:crypto";
 import { OpenAI } from "openai";
-import { getOrCreateSessionQueues } from "./server";
+import { sessionQueues } from "./server";
 import { outputSchemas } from "./generated-schemas/filesystem-schemas";
 export interface ResponseOptions {
   model: string;
@@ -74,14 +74,12 @@ export function createChatCompletionResponse(
  * and returned to the client for execution.
  */
 export async function convertOpenAIToolToLLMzTool(
-  tool: ChatCompletionTool,
-  sessionId: string
+  tool: ChatCompletionTool
 ): Promise<LLMzTool> {
   if (tool.type !== "function") {
     throw new Error("Only function tools are supported");
   }
   const { name, description, parameters } = tool.function;
-  const queues = getOrCreateSessionQueues(sessionId);
 
   // Convert input schema
   const inputSchema = transforms.fromJSONSchema(
@@ -137,8 +135,8 @@ export async function convertOpenAIToolToLLMzTool(
 
       console.log("Sending tool call to middleman");
 
-      queues.responses.publish(response);
-      const toolResult = await queues.toolResults.consume();
+      sessionQueues.responses.publish(response);
+      const toolResult = await sessionQueues.toolResults.consume();
 
       // Find the tool result message that matches our toolCallId
       const toolResultMessage = toolResult.messages.find(

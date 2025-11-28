@@ -52,14 +52,14 @@ mkdir -p logs
 
 # Array of model names
 MODELS=(
-  "google-ai:gemini-2.5-flash"
-  "google-ai:gemini-2.5-pro"
-  "openai:gpt-4.1-nano-2025-04-14"
+  # "google-ai:gemini-2.5-flash"
+  # "google-ai:gemini-2.5-pro"
+  # "openai:gpt-4.1-nano-2025-04-14"
   "openai:gpt-5-2025-08-07"
-  "openai:gpt-5-nano-2025-08-07"
-  "openai:gpt-5-mini-2025-08-07"
-  "openai:o3-2025-04-16"
-  "openai:o4-mini-2025-04-16"
+  # "openai:gpt-5-nano-2025-08-07"
+  # "openai:gpt-5-mini-2025-08-07"
+  # "openai:o3-2025-04-16"
+  # "openai:o4-mini-2025-04-16"
 )
 
 # Starting port number
